@@ -7,7 +7,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from 'react'
-import type { Update } from '@tauri-apps/plugin-updater'
+import type { DownloadOptions, Update } from '@tauri-apps/plugin-updater'
 import './App.css'
 import { useTranslation } from 'react-i18next'
 import { Toaster, toast } from 'sonner'
@@ -77,6 +77,16 @@ type SkillScopeState = Record<
 
 type ActiveView = 'myskills' | 'explore' | 'detail' | 'settings' | 'manage'
 type ManagementTab = 'tags' | 'tools' | 'updates'
+type UpdaterProxyOptions = { proxy?: string }
+type UpdaterDownloadOptions = DownloadOptions & UpdaterProxyOptions
+
+const buildUpdaterProxyOptions = (
+  enabled: boolean,
+  url: string,
+): UpdaterProxyOptions | undefined => {
+  const proxy = enabled ? url.trim() : ''
+  return proxy ? { proxy } : undefined
+}
 
 function App() {
   const { t, i18n } = useTranslation()
@@ -472,6 +482,7 @@ function App() {
       .catch((err) => {
         setError(err instanceof Error ? err.message : String(err))
       })
+      .finally(() => setGithubProxyConfigLoaded(true))
   }, [isTauri, invokeTauri])
 
   useEffect(() => {
@@ -498,34 +509,6 @@ function App() {
     }
   }, [isTauri, loadPlan])
 
-  useEffect(() => {
-    if (!isTauri) return
-    const ignoredVersion = localStorage.getItem('skills-ignored-update-version')
-    import('@tauri-apps/plugin-updater')
-      .then(({ check }) => check())
-      .then(async (update) => {
-        if (update && update.version !== ignoredVersion) {
-          updateObjRef.current = update
-          setUpdateAvailableVersion(update.version)
-          // Fetch full release notes from GitHub API
-          try {
-            const res = await fetch(
-              `https://api.github.com/repos/qufei1993/skills-hub/releases/tags/v${update.version}`,
-            )
-            if (res.ok) {
-              const data = await res.json()
-              setUpdateBody(data.body ?? update.body ?? null)
-            } else {
-              setUpdateBody(update.body ?? null)
-            }
-          } catch {
-            setUpdateBody(update.body ?? null)
-          }
-        }
-      })
-      .catch(() => {})
-  }, [isTauri])
-
   const handleDismissUpdate = useCallback(() => {
     setUpdateAvailableVersion(null)
     setUpdateBody(null)
@@ -538,20 +521,6 @@ function App() {
     setUpdateAvailableVersion(null)
     setUpdateBody(null)
   }, [updateAvailableVersion])
-
-  const handleUpdateNow = useCallback(async () => {
-    const update = updateObjRef.current
-    if (!update) return
-    setUpdateInstalling(true)
-    try {
-      await update.downloadAndInstall()
-      setUpdateInstalling(false)
-      setUpdateDone(true)
-    } catch (err) {
-      setUpdateInstalling(false)
-      toast.error(err instanceof Error ? err.message : String(err), { duration: 3200 })
-    }
-  }, [])
 
   useEffect(() => {
     if (!successToastMessage) return
@@ -874,10 +843,54 @@ function App() {
       url: '',
       auto_detected: false,
     })
+  const [githubProxyConfigLoaded, setGithubProxyConfigLoaded] = useState(false)
   const [autoUpdateConfig, setAutoUpdateConfig] =
     useState<AutoUpdateConfigDto | null>(null)
   const [autoUpdateTriggering, setAutoUpdateTriggering] = useState(false)
   const autoUpdateLastRunRef = useRef<number | null>(null)
+  const updaterProxyOptions = useMemo(
+    () => buildUpdaterProxyOptions(githubProxyConfig.enabled, githubProxyConfig.url),
+    [githubProxyConfig.enabled, githubProxyConfig.url],
+  )
+
+  useEffect(() => {
+    if (!isTauri || !githubProxyConfigLoaded) return
+    const ignoredVersion = localStorage.getItem('skills-ignored-update-version')
+    import('@tauri-apps/plugin-updater')
+      .then(({ check }) => check(updaterProxyOptions))
+      .then(async (update) => {
+        if (update && update.version !== ignoredVersion) {
+          updateObjRef.current = update
+          setUpdateAvailableVersion(update.version)
+          try {
+            const body = await invokeTauri<string | null>('get_github_release_notes', {
+              version: update.version,
+            })
+            setUpdateBody(body ?? update.body ?? null)
+          } catch {
+            setUpdateBody(update.body ?? null)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [githubProxyConfigLoaded, invokeTauri, isTauri, updaterProxyOptions])
+
+  const handleUpdateNow = useCallback(async () => {
+    const update = updateObjRef.current
+    if (!update) return
+    setUpdateInstalling(true)
+    try {
+      await update.downloadAndInstall(
+        undefined,
+        updaterProxyOptions as UpdaterDownloadOptions | undefined,
+      )
+      setUpdateInstalling(false)
+      setUpdateDone(true)
+    } catch (err) {
+      setUpdateInstalling(false)
+      toast.error(err instanceof Error ? err.message : String(err), { duration: 3200 })
+    }
+  }, [updaterProxyOptions])
 
   useEffect(() => {
     if (!isTauri) return

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-10
+
+### Fixed
+- **Unified network proxy**: App update checks, update downloads and installation, release notes, and Explore online search now honor the configured network proxy ([PR #91](https://github.com/qufei1993/skills-hub/pull/91)).
+
 ## [0.7.0] - 2026-07-05
 
 ### Added
@@ -181,3 +186,5 @@ All notable changes to this project will be documented in this file.
 
 ### Performance
 - Git import and batch install optimizations: cached clones reduce repeated fetches; timeouts and non‑interactive git improve stability.
+
+[0.7.1]: https://github.com/qufei1993/skills-hub/compare/v0.7.0...v0.7.1

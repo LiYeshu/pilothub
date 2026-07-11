@@ -30,7 +30,7 @@ export const resources = {
       settingsSectionStorage: 'Storage & cache',
       settingsSectionStorageDesc: 'Manage the Skills folder and Git cache policy.',
       settingsSectionNetwork: 'GitHub & network',
-      settingsSectionNetworkDesc: 'Token and proxy settings for GitHub operations.',
+      settingsSectionNetworkDesc: 'Token and proxy settings for app network requests.',
       settingsSectionUpdates: 'App updates',
       settingsSectionUpdatesDesc: 'Check the current version and install updates.',
       appVersion: 'App version',
@@ -264,7 +264,7 @@ export const resources = {
         'Optional. Set a GitHub personal access token to increase API rate limits from 60/hr to 5,000/hr.',
       networkProxy: 'Network proxy',
       networkProxyHint:
-        'Use a local proxy for GitHub API and Git updates. If port 7890 is detected on first launch, this is enabled automatically.',
+        'Use a local proxy for app network requests, including search, Git updates, and app updates. If port 7890 is detected on first launch, this is enabled automatically.',
       networkProxyPort: 'Proxy port',
       networkProxyPortHint:
         'Change this only if your local proxy uses another port.',
@@ -617,7 +617,7 @@ export const resources = {
       settingsSectionStorage: '存储与缓存',
       settingsSectionStorageDesc: '管理 Skills 存储位置和 Git 缓存策略。',
       settingsSectionNetwork: 'GitHub 与网络',
-      settingsSectionNetworkDesc: '配置 GitHub Token 和网络代理。',
+      settingsSectionNetworkDesc: '配置 GitHub Token 和应用联网代理。',
       settingsSectionUpdates: '应用更新',
       settingsSectionUpdatesDesc: '查看当前版本并检查应用更新。',
       appVersion: '应用版本',
@@ -843,7 +843,7 @@ export const resources = {
         '可选。设置 GitHub 个人访问令牌，可将 API 速率限制从 60 次/小时提升到 5,000 次/小时。',
       networkProxy: '网络代理',
       networkProxyHint:
-        '为 GitHub API 和 Git 更新使用本地代理。首次启动检测到 7890 端口时会自动开启。',
+        '为应用联网请求使用本地代理，包括搜索、Git 更新和应用更新。首次启动检测到 7890 端口时会自动开启。',
       networkProxyPort: '代理端口',
       networkProxyPortHint:
         '只有本地代理使用其他端口时才需要修改。',

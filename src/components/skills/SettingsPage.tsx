@@ -1,10 +1,20 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Database, Github, Palette, RefreshCw } from 'lucide-react'
 import type { TFunction } from 'i18next'
-import type { Update } from '@tauri-apps/plugin-updater'
+import type { DownloadOptions, Update } from '@tauri-apps/plugin-updater'
 import type { GithubProxyConfigDto } from './types'
 
 type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'done' | 'error'
+type UpdaterProxyOptions = { proxy?: string }
+type UpdaterDownloadOptions = DownloadOptions & UpdaterProxyOptions
+
+const buildUpdaterProxyOptions = (
+  enabled: boolean,
+  url: string,
+): UpdaterProxyOptions | undefined => {
+  const proxy = enabled ? url.trim() : ''
+  return proxy ? { proxy } : undefined
+}
 
 type SettingsPageProps = {
   isTauri: boolean
@@ -62,6 +72,10 @@ const SettingsPage = ({
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
   const [updateError, setUpdateError] = useState<string | null>(null)
   const updateRef = useRef<Update | null>(null)
+  const updaterProxyOptions = useMemo(
+    () => buildUpdaterProxyOptions(githubProxyConfig.enabled, githubProxyConfig.url),
+    [githubProxyConfig.enabled, githubProxyConfig.url],
+  )
 
   const handleCheckUpdate = useCallback(async () => {
     if (!isTauri) return
@@ -69,7 +83,7 @@ const SettingsPage = ({
     setUpdateError(null)
     try {
       const { check } = await import('@tauri-apps/plugin-updater')
-      const update = await check()
+      const update = await check(updaterProxyOptions)
       if (update) {
         updateRef.current = update
         setUpdateVersion(update.version)
@@ -81,7 +95,7 @@ const SettingsPage = ({
       setUpdateError(err instanceof Error ? err.message : String(err))
       setUpdateStatus('error')
     }
-  }, [isTauri])
+  }, [isTauri, updaterProxyOptions])
 
   const handleInstallUpdate = useCallback(async () => {
     const update = updateRef.current
@@ -89,13 +103,16 @@ const SettingsPage = ({
     setUpdateStatus('downloading')
     setUpdateError(null)
     try {
-      await update.downloadAndInstall()
+      await update.downloadAndInstall(
+        undefined,
+        updaterProxyOptions as UpdaterDownloadOptions | undefined,
+      )
       setUpdateStatus('done')
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : String(err))
       setUpdateStatus('error')
     }
-  }, [])
+  }, [updaterProxyOptions])
 
   const [appVersion, setAppVersion] = useState<string | null>(null)
   const versionText = useMemo(() => {
