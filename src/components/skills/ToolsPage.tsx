@@ -6,6 +6,7 @@ import type {
   ToolConfigDto,
   ToolStatusDto,
 } from './types'
+import ToolIcon from './ToolIcon'
 
 type ToolsPageProps = {
   toolStatus: ToolStatusDto | null
@@ -133,9 +134,7 @@ const ToolsPage = ({
       >
         <div className="tool-card-head">
           <div className="tool-card-title">
-            <span className="tool-card-avatar" aria-hidden="true">
-              {tool.label.slice(0, 2).toUpperCase()}
-            </span>
+            <ToolIcon toolKey={tool.key} label={tool.label} className="tool-card-avatar" />
             <span className="tool-management-name">
               {t(`tools.${tool.key}`, { defaultValue: tool.label })}
             </span>
@@ -232,6 +231,7 @@ const ToolsPage = ({
           </div>
         </div>
 
+        <div className="tools-content-grid">
         <section className="tools-panel">
           <div className="tools-panel-head">
             <div>
@@ -318,6 +318,7 @@ const ToolsPage = ({
             </button>
           </div>
         </section>
+        </div>
       </div>
     </div>
   )

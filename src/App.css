@@ -3244,6 +3244,42 @@
   font-weight: 800;
 }
 
+.tool-brand-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 8px;
+  line-height: 1;
+  user-select: none;
+}
+
+.tool-brand-icon.has-logo {
+  background: #fff;
+}
+
+.tool-brand-icon img {
+  width: 78%;
+  height: 78%;
+  display: block;
+  object-fit: contain;
+}
+
+.tool-brand-icon.fallback {
+  background: color-mix(in srgb, var(--tool-brand) 13%, var(--bg-panel));
+  color: var(--tool-brand);
+  border: 1px solid color-mix(in srgb, var(--tool-brand) 22%, transparent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.tool-brand-icon.tool-card-avatar {
+  border-radius: 8px;
+}
+
 .tool-card-badges {
   display: flex;
   align-items: center;
@@ -3569,6 +3605,9 @@
 }
 
 .settings-card .settings-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: start;
   padding: 0;
   border-bottom: none;
 }
@@ -3598,7 +3637,10 @@
 
 .settings-toggle {
   width: 44px;
+  min-width: 44px;
   height: 24px;
+  flex: 0 0 44px;
+  align-self: start;
   background: var(--bg-element);
   border-radius: 999px;
   border: 1px solid var(--border-subtle);

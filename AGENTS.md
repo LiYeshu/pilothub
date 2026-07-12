@@ -123,6 +123,11 @@ src-tauri/src/                # Rust backend
 - Theming via CSS variables + `[data-theme="dark"]` selector, variables defined in `src/index.css`
 - Tailwind utility classes and custom CSS classes can be mixed
 
+### UI Design Reference
+- Before frontend work that changes layout, visual styling, shared components, navigation, overlays, responsive behavior, or interaction feedback, read `docs/UI-DESIGN-GUIDELINES.md`.
+- Do not load the UI guidelines for backend-only, data-only, test-only, release, or documentation tasks unless they also change product UI.
+- The English file is authoritative for agents. `docs/UI-DESIGN-GUIDELINES.zh.md` is a human-readable Chinese reference and should not be loaded in addition to the English file.
+
 ## Development Workflow
 
 1. **Before implementing**: Briefly describe the approach and list the files to be modified. Wait for confirmation before writing code.

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { DownloadOptions, Update } from '@tauri-apps/plugin-updater'
 import './App.css'
+import './figma.css'
 import { useTranslation } from 'react-i18next'
 import { Toaster, toast } from 'sonner'
 import Markdown from 'react-markdown'
@@ -35,6 +36,7 @@ import SharedDirModal from './components/skills/modals/SharedDirModal'
 import SettingsPage from './components/skills/SettingsPage'
 import ToolsPage from './components/skills/ToolsPage'
 import UpdatesPage from './components/skills/UpdatesPage'
+import WindowResizeHandles from './components/WindowResizeHandles'
 import {
   getAutoUpdateToastKey,
   shouldKeepWaitingForTriggeredAutoUpdate,
@@ -94,12 +96,19 @@ function App() {
   const languageStorageKey = 'skills-language'
   const themeStorageKey = 'skills-theme'
   const skillScopeStorageKey = 'skills-project-scope-state-v1'
+  const skillViewModeStorageKey = 'skills-view-mode'
+  const sidebarCollapsedStorageKey = 'skills-sidebar-collapsed'
   const toggleLanguage = useCallback(() => {
     void i18n.changeLanguage(language === 'en' ? 'zh' : 'en')
   }, [i18n, language])
+
+  useEffect(() => {
+    document.documentElement.lang = language.startsWith('zh') ? 'zh-CN' : 'en'
+  }, [language])
   const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>(
     'system',
   )
+  const [appVersion, setAppVersion] = useState('')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
   const [plan, setPlan] = useState<OnboardingPlan | null>(null)
   const [loading, setLoading] = useState(false)
@@ -148,6 +157,14 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'updated' | 'name'>('updated')
   const [scopeFilter, setScopeFilter] = useState<'all' | 'global' | 'project'>('all')
+  const [skillViewMode, setSkillViewMode] = useState<'list' | 'cards'>(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(skillViewModeStorageKey) === 'cards'
+      ? 'cards'
+      : 'list',
+  )
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(sidebarCollapsedStorageKey) === 'true',
+  )
   const [activeView, setActiveView] = useState<ActiveView>('myskills')
   const [managementTab, setManagementTab] = useState<ManagementTab>('tags')
   const [detailSkill, setDetailSkill] = useState<ManagedSkill | null>(null)
@@ -185,6 +202,36 @@ function App() {
       (window as { __TAURI__?: unknown }).__TAURI__ ||
         (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__,
     )
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(skillViewModeStorageKey, skillViewMode)
+    } catch {
+      // ignore storage failures
+    }
+  }, [skillViewMode])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(sidebarCollapsedStorageKey, String(sidebarCollapsed))
+    } catch {
+      // ignore storage failures
+    }
+  }, [sidebarCollapsed])
+
+  useEffect(() => {
+    if (!isTauri) return
+    let active = true
+    void import('@tauri-apps/api/app')
+      .then(({ getVersion }) => getVersion())
+      .then((version) => {
+        if (active) setAppVersion(version)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [isTauri])
 
   const invokeTauri = useCallback(
     async <T,>(command: string, args?: Record<string, unknown>) => {
@@ -1223,6 +1270,7 @@ function App() {
   }, [toolStatus, tools])
 
   const handleOpenSettings = useCallback(() => {
+    setShowAddModal(false)
     setActiveView('settings')
   }, [])
 
@@ -1241,6 +1289,7 @@ function App() {
 
   const handleViewChange = useCallback(
     (view: 'myskills' | 'explore' | 'manage') => {
+      setShowAddModal(false)
       setActiveView(view)
       if (view !== 'myskills') {
         setBulkMode(false)
@@ -1306,8 +1355,9 @@ function App() {
   )
 
 
-  const handleOpenAdd = useCallback(() => {
+  const handleOpenAdd = useCallback((tab: 'git' | 'local' = 'git') => {
     resetInstallScope()
+    setAddModalTab(tab)
     setShowAddModal(true)
     setAddModalTagIds([])
   }, [resetInstallScope])
@@ -2418,7 +2468,6 @@ function App() {
         setLocalCandidateSelected(
           Object.fromEntries(candidates.map((c) => [c.subpath, c.valid])),
         )
-        setShowAddModal(false)
         setShowLocalPickModal(true)
         setActionMessage(null)
         setLoading(false)
@@ -2460,7 +2509,6 @@ function App() {
           setGitCandidateSelected(
             Object.fromEntries(candidates.map((c) => [c.subpath, true])),
           )
-          setShowAddModal(false)
           setShowGitPickModal(true)
           setActionMessage(null)
           setLoading(false)
@@ -2542,7 +2590,6 @@ function App() {
             setGitCandidateSelected(
               Object.fromEntries(candidates.map((c) => [c.subpath, true])),
             )
-            setShowAddModal(false)
             setShowGitPickModal(true)
             setActionMessage(null)
             setLoading(false)
@@ -2555,7 +2602,6 @@ function App() {
           setGitCandidateSelected(
             Object.fromEntries(candidates.map((c) => [c.subpath, true])),
           )
-          setShowAddModal(false)
           setShowGitPickModal(true)
           setActionMessage(null)
           setLoading(false)
@@ -3272,8 +3318,21 @@ function App() {
     return managedSkills.find((skill) => skill.id === scopeModalSkill.id) ?? scopeModalSkill
   }, [managedSkills, scopeModalSkill])
 
+  const globalSkillCount = managedSkills.filter(
+    (skill) => getSkillScope(skill) === 'global',
+  ).length
+  const projectSkillCount = managedSkills.length - globalSkillCount
+  const enabledSkillCount = managedSkills.filter((skill) => skill.enabled !== false).length
+  const pendingUpdateCount = autoUpdateConfig?.last_failed ?? 0
+
+  const handleManagementTabChange = (tab: ManagementTab) => {
+    setShowAddModal(false)
+    setManagementTab(tab)
+    setActiveView('manage')
+  }
+
   return (
-    <div className="skills-app">
+    <div className={`skills-app${isTauri ? ' is-tauri' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <Toaster
         position="top-right"
         richColors
@@ -3288,14 +3347,21 @@ function App() {
       />
 
       <Header
-        language={language}
-        loading={loading}
         activeView={activeView}
-        onToggleLanguage={toggleLanguage}
+        managementTab={managementTab}
+        skillCount={managedSkills.length}
+        tagCount={tags.length}
+        toolCount={toolStatus?.tools.length ?? 0}
+        updateCount={pendingUpdateCount}
+        appVersion={appVersion}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
         onOpenSettings={handleOpenSettings}
         onViewChange={handleViewChange}
+        onManagementTabChange={handleManagementTabChange}
         t={t}
       />
+      <WindowResizeHandles enabled={isTauri} />
 
       <main className="skills-main">
         {activeView === 'detail' && detailSkill ? (
@@ -3308,6 +3374,26 @@ function App() {
           />
         ) : activeView === 'myskills' ? (
           <div className="dashboard-stack">
+            <section className="dashboard-stats" aria-label={t('navMySkills')}>
+              <article>
+                <span>{t('stats.managed')}</span>
+                <strong>{managedSkills.length}</strong>
+              </article>
+              <article>
+                <span>{t('stats.global')}</span>
+                <strong>{globalSkillCount}</strong>
+              </article>
+              <article>
+                <span>{t('stats.project')}</span>
+                <strong>{projectSkillCount}</strong>
+              </article>
+              <article>
+                <span>{t('stats.syncStatus')}</span>
+                <strong className="status-summary">
+                  <i />{enabledSkillCount === managedSkills.length ? t('stats.allNormal') : t('stats.enabledCount', { count: enabledSkillCount })}
+                </strong>
+              </article>
+            </section>
             <FilterBar
               sortBy={sortBy}
               searchQuery={searchQuery}
@@ -3319,6 +3405,7 @@ function App() {
               totalCount={visibleSkills.length}
               bulkMode={bulkMode}
               bulkSelectedCount={bulkSelectedIds.length}
+              viewMode={skillViewMode}
               onSortChange={handleSortChange}
               onSearchChange={handleSearchChange}
               onScopeFilterChange={handleScopeFilterChange}
@@ -3327,6 +3414,7 @@ function App() {
               onClearTags={handleClearTagFilters}
               onManageTags={handleOpenTagsPage}
               onToggleBulkMode={handleToggleBulkMode}
+              onViewModeChange={setSkillViewMode}
               t={t}
             />
             <SkillsList
@@ -3336,6 +3424,7 @@ function App() {
               loading={loading}
               bulkMode={bulkMode}
               selectedSkillIds={bulkSelectedIds}
+              viewMode={skillViewMode}
               getGithubInfo={getGithubInfo}
               getSkillSourceLabel={getSkillSourceLabel}
               formatRelative={formatRelative}
@@ -3524,9 +3613,7 @@ function App() {
         canClose={!loading}
         addModalTab={addModalTab}
         localPath={localPath}
-        localName={localName}
         gitUrl={gitUrl}
-        gitName={gitName}
         tags={tags}
         selectedTagIds={addModalTagIds}
         syncTargets={syncTargets}
@@ -3539,9 +3626,7 @@ function App() {
         onTabChange={setAddModalTab}
         onLocalPathChange={setLocalPath}
         onPickLocalPath={handlePickLocalPath}
-        onLocalNameChange={setLocalName}
         onGitUrlChange={setGitUrl}
-        onGitNameChange={setGitName}
         onToggleTag={handleToggleAddModalTag}
         onSyncTargetChange={handleSyncTargetChange}
         onInstallScopeChange={handleInstallScopeChange}
