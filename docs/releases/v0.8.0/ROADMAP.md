@@ -41,6 +41,14 @@ v0.8.0 是 Skills Hub 的桌面端界面重构版本，重点解决 v0.7.x 在�
 - 中英文和浅色/深色主题下布局与交互保持一致。
 - 应用版本号统一为 `0.8.0`，前端和 Rust 全量检查通过。
 
+## 设计原型
+
+v0.8.0 Beta 窗口与桌面端 UI 设计资产统一存放在 [`prototypes/`](prototypes/)：
+
+- [`ui-prototype.html`](prototypes/ui-prototype.html)：桌面端 UI 重构交互原型。
+- [`figma-handoff.html`](prototypes/figma-handoff.html)：Figma 单文件交接画布。
+- 同目录下的 `*.artifact.json` 为对应 HTML 原型的渲染与导出配置。
+
 ## 验证
 
 实现完成后运行：
