@@ -16,6 +16,7 @@ type SkillsListProps = {
   loading: boolean
   bulkMode: boolean
   selectedSkillIds: string[]
+  viewMode: 'list' | 'cards'
   getGithubInfo: (url: string | null | undefined) => GithubInfo | null
   getSkillSourceLabel: (skill: ManagedSkill) => string
   formatRelative: (ms: number | null | undefined) => string
@@ -40,6 +41,7 @@ const SkillsList = ({
   loading,
   bulkMode,
   selectedSkillIds,
+  viewMode,
   getGithubInfo,
   getSkillSourceLabel,
   formatRelative,
@@ -59,7 +61,19 @@ const SkillsList = ({
   const selectedSkillSet = new Set(selectedSkillIds)
 
   return (
-    <div className="skills-list">
+    <div
+      className="skills-list"
+      role="region"
+      tabIndex={0}
+      aria-label={t('navMySkills')}
+      onWheel={(event) => {
+        if (event.deltaY === 0) return
+        const list = event.currentTarget
+        const previousScrollTop = list.scrollTop
+        list.scrollTop += event.deltaY
+        if (list.scrollTop !== previousScrollTop) event.preventDefault()
+      }}
+    >
       {plan && plan.total_skills_found > 0 ? (
         <div className="discovered-banner">
           <div className="banner-left">
@@ -87,7 +101,7 @@ const SkillsList = ({
       {visibleSkills.length === 0 ? (
         <div className="empty">{t('skillsEmpty')}</div>
       ) : (
-        <>
+        <div className={`skills-table ${viewMode}-view`}>
           {visibleSkills.map((skill) => (
             <SkillCard
               key={skill.id}
@@ -112,7 +126,7 @@ const SkillsList = ({
               t={t}
             />
           ))}
-        </>
+        </div>
       )}
     </div>
   )
