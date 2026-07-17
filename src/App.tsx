@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { DownloadOptions, Update } from '@tauri-apps/plugin-updater'
 import './App.css'
+import './figma.css'
 import { useTranslation } from 'react-i18next'
 import { Toaster, toast } from 'sonner'
 import Markdown from 'react-markdown'
@@ -35,6 +36,7 @@ import SharedDirModal from './components/skills/modals/SharedDirModal'
 import SettingsPage from './components/skills/SettingsPage'
 import ToolsPage from './components/skills/ToolsPage'
 import UpdatesPage from './components/skills/UpdatesPage'
+import WindowResizeHandles from './components/WindowResizeHandles'
 import {
   getAutoUpdateToastKey,
   shouldKeepWaitingForTriggeredAutoUpdate,
@@ -94,12 +96,19 @@ function App() {
   const languageStorageKey = 'skills-language'
   const themeStorageKey = 'skills-theme'
   const skillScopeStorageKey = 'skills-project-scope-state-v1'
+  const skillViewModeStorageKey = 'skills-view-mode'
+  const sidebarCollapsedStorageKey = 'skills-sidebar-collapsed'
   const toggleLanguage = useCallback(() => {
     void i18n.changeLanguage(language === 'en' ? 'zh' : 'en')
   }, [i18n, language])
+
+  useEffect(() => {
+    document.documentElement.lang = language.startsWith('zh') ? 'zh-CN' : 'en'
+  }, [language])
   const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>(
     'system',
   )
+  const [appVersion, setAppVersion] = useState('')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
   const [plan, setPlan] = useState<OnboardingPlan | null>(null)
   const [loading, setLoading] = useState(false)
@@ -142,12 +151,22 @@ function App() {
   } | null>(null)
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null)
   const [updateBody, setUpdateBody] = useState<string | null>(null)
+  const [updateChecking, setUpdateChecking] = useState(false)
   const [updateInstalling, setUpdateInstalling] = useState(false)
   const [updateDone, setUpdateDone] = useState(false)
+  const [showAppUpdateModal, setShowAppUpdateModal] = useState(false)
   const updateObjRef = useRef<Update | null>(null) as MutableRefObject<Update | null>
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'updated' | 'name'>('updated')
   const [scopeFilter, setScopeFilter] = useState<'all' | 'global' | 'project'>('all')
+  const [skillViewMode, setSkillViewMode] = useState<'list' | 'cards'>(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(skillViewModeStorageKey) === 'cards'
+      ? 'cards'
+      : 'list',
+  )
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(sidebarCollapsedStorageKey) === 'true',
+  )
   const [activeView, setActiveView] = useState<ActiveView>('myskills')
   const [managementTab, setManagementTab] = useState<ManagementTab>('tags')
   const [detailSkill, setDetailSkill] = useState<ManagedSkill | null>(null)
@@ -185,6 +204,36 @@ function App() {
       (window as { __TAURI__?: unknown }).__TAURI__ ||
         (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__,
     )
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(skillViewModeStorageKey, skillViewMode)
+    } catch {
+      // ignore storage failures
+    }
+  }, [skillViewMode])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(sidebarCollapsedStorageKey, String(sidebarCollapsed))
+    } catch {
+      // ignore storage failures
+    }
+  }, [sidebarCollapsed])
+
+  useEffect(() => {
+    if (!isTauri) return
+    let active = true
+    void import('@tauri-apps/api/app')
+      .then(({ getVersion }) => getVersion())
+      .then((version) => {
+        if (active) setAppVersion(version)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [isTauri])
 
   const invokeTauri = useCallback(
     async <T,>(command: string, args?: Record<string, unknown>) => {
@@ -305,9 +354,11 @@ function App() {
     }
   }
 
-  const loadPlan = useCallback(async () => {
-    setLoading(true)
-    setLoadingStartAt(Date.now())
+  const loadPlan = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true)
+      setLoadingStartAt(Date.now())
+    }
     setError(null)
     try {
       const result = await invokeTauri<OnboardingPlan>('get_onboarding_plan')
@@ -328,8 +379,10 @@ function App() {
       setError(err instanceof Error ? err.message : String(err))
       return null
     } finally {
-      setLoading(false)
-      setLoadingStartAt(null)
+      if (showLoading) {
+        setLoading(false)
+        setLoadingStartAt(null)
+      }
     }
   }, [invokeTauri])
 
@@ -505,19 +558,24 @@ function App() {
 
   useEffect(() => {
     if (isTauri) {
-      void loadPlan()
+      void loadPlan(false)
     }
   }, [isTauri, loadPlan])
 
   const handleDismissUpdate = useCallback(() => {
-    setUpdateAvailableVersion(null)
-    setUpdateBody(null)
+    setShowAppUpdateModal(false)
   }, [])
+
+  const handleOpenUpdate = useCallback(() => {
+    if (updateAvailableVersion) setShowAppUpdateModal(true)
+  }, [updateAvailableVersion])
 
   const handleDismissUpdateForever = useCallback(() => {
     if (updateAvailableVersion) {
       localStorage.setItem('skills-ignored-update-version', updateAvailableVersion)
     }
+    updateObjRef.current = null
+    setShowAppUpdateModal(false)
     setUpdateAvailableVersion(null)
     setUpdateBody(null)
   }, [updateAvailableVersion])
@@ -547,6 +605,7 @@ function App() {
       id: info.key,
       // Prefer i18n label if present; fallback to backend label.
       label: t(`tools.${info.key}`, { defaultValue: info.label }),
+      avatar: info.avatar,
       supports_project_scope: info.supports_project_scope,
     }))
   }, [t, enabledToolInfos])
@@ -855,24 +914,36 @@ function App() {
 
   useEffect(() => {
     if (!isTauri || !githubProxyConfigLoaded) return
+    let cancelled = false
     const ignoredVersion = localStorage.getItem('skills-ignored-update-version')
-    import('@tauri-apps/plugin-updater')
+    setUpdateChecking(true)
+    void import('@tauri-apps/plugin-updater')
       .then(({ check }) => check(updaterProxyOptions))
       .then(async (update) => {
+        if (cancelled) return
         if (update && update.version !== ignoredVersion) {
           updateObjRef.current = update
           setUpdateAvailableVersion(update.version)
+          setUpdateDone(false)
           try {
             const body = await invokeTauri<string | null>('get_github_release_notes', {
               version: update.version,
             })
+            if (cancelled) return
             setUpdateBody(body ?? update.body ?? null)
           } catch {
+            if (cancelled) return
             setUpdateBody(update.body ?? null)
           }
         }
       })
       .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setUpdateChecking(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [githubProxyConfigLoaded, invokeTauri, isTauri, updaterProxyOptions])
 
   const handleUpdateNow = useCallback(async () => {
@@ -1031,7 +1102,7 @@ function App() {
   const handleToolConfigChange = useCallback(
     async (nextConfig: ToolConfigDto) => {
       setToolConfig(nextConfig)
-      if (!isTauri) return
+      if (!isTauri) return true
       try {
         const saved = await invokeTauri<ToolConfigDto>('set_tool_config', {
           config: nextConfig,
@@ -1048,8 +1119,20 @@ function App() {
           return next
         })
         toast.success(t('toolManagement.saved'), { duration: 1600 })
+        return true
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
+        try {
+          const [config, status] = await Promise.all([
+            invokeTauri<ToolConfigDto>('get_tool_config'),
+            invokeTauri<ToolStatusDto>('get_tool_status'),
+          ])
+          setToolConfig(config)
+          setToolStatus(status)
+        } catch {
+          // Preserve the original save error.
+        }
+        return false
       }
     },
     [invokeTauri, isTauri, t],
@@ -1223,6 +1306,7 @@ function App() {
   }, [toolStatus, tools])
 
   const handleOpenSettings = useCallback(() => {
+    setShowAddModal(false)
     setActiveView('settings')
   }, [])
 
@@ -1241,6 +1325,7 @@ function App() {
 
   const handleViewChange = useCallback(
     (view: 'myskills' | 'explore' | 'manage') => {
+      setShowAddModal(false)
       setActiveView(view)
       if (view !== 'myskills') {
         setBulkMode(false)
@@ -1306,8 +1391,9 @@ function App() {
   )
 
 
-  const handleOpenAdd = useCallback(() => {
+  const handleOpenAdd = useCallback((tab: 'git' | 'local' = 'git') => {
     resetInstallScope()
+    setAddModalTab(tab)
     setShowAddModal(true)
     setAddModalTagIds([])
   }, [resetInstallScope])
@@ -2418,7 +2504,6 @@ function App() {
         setLocalCandidateSelected(
           Object.fromEntries(candidates.map((c) => [c.subpath, c.valid])),
         )
-        setShowAddModal(false)
         setShowLocalPickModal(true)
         setActionMessage(null)
         setLoading(false)
@@ -2460,7 +2545,6 @@ function App() {
           setGitCandidateSelected(
             Object.fromEntries(candidates.map((c) => [c.subpath, true])),
           )
-          setShowAddModal(false)
           setShowGitPickModal(true)
           setActionMessage(null)
           setLoading(false)
@@ -2542,7 +2626,6 @@ function App() {
             setGitCandidateSelected(
               Object.fromEntries(candidates.map((c) => [c.subpath, true])),
             )
-            setShowAddModal(false)
             setShowGitPickModal(true)
             setActionMessage(null)
             setLoading(false)
@@ -2555,7 +2638,6 @@ function App() {
           setGitCandidateSelected(
             Object.fromEntries(candidates.map((c) => [c.subpath, true])),
           )
-          setShowAddModal(false)
           setShowGitPickModal(true)
           setActionMessage(null)
           setLoading(false)
@@ -3272,8 +3354,21 @@ function App() {
     return managedSkills.find((skill) => skill.id === scopeModalSkill.id) ?? scopeModalSkill
   }, [managedSkills, scopeModalSkill])
 
+  const globalSkillCount = managedSkills.filter(
+    (skill) => getSkillScope(skill) === 'global',
+  ).length
+  const projectSkillCount = managedSkills.length - globalSkillCount
+  const enabledSkillCount = managedSkills.filter((skill) => skill.enabled !== false).length
+  const pendingUpdateCount = autoUpdateConfig?.last_failed ?? 0
+
+  const handleManagementTabChange = (tab: ManagementTab) => {
+    setShowAddModal(false)
+    setManagementTab(tab)
+    setActiveView('manage')
+  }
+
   return (
-    <div className="skills-app">
+    <div className={`skills-app${isTauri ? ' is-tauri' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <Toaster
         position="top-right"
         richColors
@@ -3288,14 +3383,26 @@ function App() {
       />
 
       <Header
-        language={language}
-        loading={loading}
         activeView={activeView}
-        onToggleLanguage={toggleLanguage}
+        managementTab={managementTab}
+        skillCount={managedSkills.length}
+        tagCount={tags.length}
+        toolCount={toolStatus?.tools.length ?? 0}
+        updateCount={pendingUpdateCount}
+        appVersion={appVersion}
+        updateAvailableVersion={updateAvailableVersion}
+        updateChecking={updateChecking}
+        updateInstalling={updateInstalling}
+        updateDone={updateDone}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
         onOpenSettings={handleOpenSettings}
+        onOpenUpdate={handleOpenUpdate}
         onViewChange={handleViewChange}
+        onManagementTabChange={handleManagementTabChange}
         t={t}
       />
+      <WindowResizeHandles enabled={isTauri} />
 
       <main className="skills-main">
         {activeView === 'detail' && detailSkill ? (
@@ -3308,6 +3415,26 @@ function App() {
           />
         ) : activeView === 'myskills' ? (
           <div className="dashboard-stack">
+            <section className="dashboard-stats" aria-label={t('navMySkills')}>
+              <article>
+                <span>{t('stats.managed')}</span>
+                <strong>{managedSkills.length}</strong>
+              </article>
+              <article>
+                <span>{t('stats.global')}</span>
+                <strong>{globalSkillCount}</strong>
+              </article>
+              <article>
+                <span>{t('stats.project')}</span>
+                <strong>{projectSkillCount}</strong>
+              </article>
+              <article>
+                <span>{t('stats.syncStatus')}</span>
+                <strong className="status-summary">
+                  <i />{enabledSkillCount === managedSkills.length ? t('stats.allNormal') : t('stats.enabledCount', { count: enabledSkillCount })}
+                </strong>
+              </article>
+            </section>
             <FilterBar
               sortBy={sortBy}
               searchQuery={searchQuery}
@@ -3319,6 +3446,7 @@ function App() {
               totalCount={visibleSkills.length}
               bulkMode={bulkMode}
               bulkSelectedCount={bulkSelectedIds.length}
+              viewMode={skillViewMode}
               onSortChange={handleSortChange}
               onSearchChange={handleSearchChange}
               onScopeFilterChange={handleScopeFilterChange}
@@ -3327,6 +3455,7 @@ function App() {
               onClearTags={handleClearTagFilters}
               onManageTags={handleOpenTagsPage}
               onToggleBulkMode={handleToggleBulkMode}
+              onViewModeChange={setSkillViewMode}
               t={t}
             />
             <SkillsList
@@ -3336,6 +3465,7 @@ function App() {
               loading={loading}
               bulkMode={bulkMode}
               selectedSkillIds={bulkSelectedIds}
+              viewMode={skillViewMode}
               getGithubInfo={getGithubInfo}
               getSkillSourceLabel={getSkillSourceLabel}
               formatRelative={formatRelative}
@@ -3524,9 +3654,7 @@ function App() {
         canClose={!loading}
         addModalTab={addModalTab}
         localPath={localPath}
-        localName={localName}
         gitUrl={gitUrl}
-        gitName={gitName}
         tags={tags}
         selectedTagIds={addModalTagIds}
         syncTargets={syncTargets}
@@ -3539,9 +3667,7 @@ function App() {
         onTabChange={setAddModalTab}
         onLocalPathChange={setLocalPath}
         onPickLocalPath={handlePickLocalPath}
-        onLocalNameChange={setLocalName}
         onGitUrlChange={setGitUrl}
-        onGitNameChange={setGitName}
         onToggleTag={handleToggleAddModalTag}
         onSyncTargetChange={handleSyncTargetChange}
         onInstallScopeChange={handleInstallScopeChange}
@@ -3741,7 +3867,7 @@ function App() {
         />
       ) : null}
 
-      {updateAvailableVersion && (
+      {showAppUpdateModal && updateAvailableVersion && (
         <div className="modal-backdrop" onClick={updateInstalling ? undefined : handleDismissUpdate}>
           <div
             className="modal update-modal"
