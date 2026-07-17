@@ -29,6 +29,7 @@ import zencoderLogo from '@lobehub/icons-static-svg/icons/zencoder-color.svg'
 type ToolIconProps = {
   toolKey: string
   label: string
+  avatar?: string | null
   className?: string
 }
 
@@ -93,15 +94,15 @@ const getInitials = (label: string) =>
     .slice(0, 2)
     .toUpperCase()
 
-const ToolIcon = ({ toolKey, label, className = '' }: ToolIconProps) => {
-  const logo = logoByToolKey[toolKey]
+const ToolIcon = ({ toolKey, label, avatar, className = '' }: ToolIconProps) => {
+  const logo = avatar || logoByToolKey[toolKey]
   const style = {
     '--tool-brand': fallbackColorByToolKey[toolKey] ?? '#64748b',
   } as CSSProperties
 
   return (
     <span
-      className={`tool-brand-icon${logo ? ' has-logo' : ' fallback'}${className ? ` ${className}` : ''}`}
+      className={`tool-brand-icon${logo ? ' has-logo' : ' fallback'}${avatar ? ' custom-avatar' : ''}${className ? ` ${className}` : ''}`}
       style={style}
       aria-hidden="true"
     >

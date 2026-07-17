@@ -11,6 +11,14 @@
     "core:window:allow-start-resize-dragging",
     "dialog:default",
     "dialog:allow-open",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/qufei1993/skills-hub"
+        }
+      ]
+    },
     "updater:default"
   ]
 }

@@ -63,11 +63,51 @@
   font-weight: 700;
 }
 
-.window-titlebar > span:last-child {
+.titlebar-version-status {
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   font-family: var(--font-mono);
   color: var(--text-secondary);
   font-size: 10px;
+}
+
+.titlebar-update-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  appearance: none;
+  border: 0;
+  border-radius: 5px;
+  background: var(--accent-soft-bg);
+  color: var(--accent-primary);
+  padding: 0;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.titlebar-update-action:hover:not(:disabled) {
+  color: var(--accent-primary-hover);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.titlebar-update-action:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.titlebar-update-action:disabled { cursor: wait; }
+.titlebar-update-action.done { color: var(--success); background: var(--success-soft-bg); }
+.titlebar-update-spinner { animation: titlebar-update-spin 900ms linear infinite; }
+
+@keyframes titlebar-update-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .titlebar-update-spinner { animation: none; }
 }
 
 .traffic-lights {
@@ -358,7 +398,7 @@
   background: transparent;
 }
 .skills-table.cards-view {
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
   gap: 10px;
 }
 .skills-table.list-view { grid-template-columns: 1fr; gap: 8px; }

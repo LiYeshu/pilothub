@@ -159,7 +159,11 @@ const SkillCard = ({
                   onClick={() => enabled && onToggleTool(skill, tool.id)}
                   disabled={!enabled}
                 >
-                  <ToolIcon toolKey={tool.id} label={tool.label} />
+                  <ToolIcon
+                    toolKey={tool.id}
+                    label={tool.label}
+                    avatar={tool.avatar}
+                  />
                 </button>
               )
             })}

@@ -1,9 +1,12 @@
 import { memo, type PointerEvent } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import {
+  CircleCheck,
   ChevronLeft,
   Compass,
+  Download,
   Layers3,
+  LoaderCircle,
   RefreshCw,
   Settings,
   Tag,
@@ -21,9 +24,14 @@ type HeaderProps = {
   toolCount: number
   updateCount: number
   appVersion: string
+  updateAvailableVersion: string | null
+  updateChecking: boolean
+  updateInstalling: boolean
+  updateDone: boolean
   collapsed: boolean
   onToggleCollapsed: () => void
   onOpenSettings: () => void
+  onOpenUpdate: () => void
   onViewChange: (view: 'myskills' | 'explore' | 'manage') => void
   onManagementTabChange: (tab: ManagementTab) => void
   t: TFunction
@@ -45,9 +53,14 @@ const Header = ({
   toolCount,
   updateCount,
   appVersion,
+  updateAvailableVersion,
+  updateChecking,
+  updateInstalling,
+  updateDone,
   collapsed,
   onToggleCollapsed,
   onOpenSettings,
+  onOpenUpdate,
   onViewChange,
   onManagementTabChange,
   t,
@@ -64,7 +77,41 @@ const Header = ({
         <span className="traffic-light green" data-tauri-drag-region />
       </div>
       <strong data-tauri-drag-region>{t('appName')}</strong>
-      <span data-tauri-drag-region>{appVersion ? `v${appVersion}` : null}</span>
+      {appVersion ? (
+        <div className="titlebar-version-status" data-tauri-drag-region>
+          <span data-tauri-drag-region>v{appVersion}</span>
+          {updateChecking ? (
+            <LoaderCircle
+              className="titlebar-update-spinner"
+              size={13}
+              aria-label={t('titlebarUpdate.checking')}
+            />
+          ) : updateAvailableVersion ? (
+            <button
+              className={`titlebar-update-action${updateDone ? ' done' : ''}`}
+              type="button"
+              disabled={updateInstalling}
+              onClick={onOpenUpdate}
+              aria-label={t(
+                updateDone ? 'titlebarUpdate.installed' : 'titlebarUpdate.available',
+                { version: updateAvailableVersion },
+              )}
+              title={t(
+                updateDone ? 'titlebarUpdate.installed' : 'titlebarUpdate.available',
+                { version: updateAvailableVersion },
+              )}
+            >
+              {updateInstalling ? (
+                <LoaderCircle className="titlebar-update-spinner" size={13} />
+              ) : updateDone ? (
+                <CircleCheck size={13} />
+              ) : (
+                <Download size={13} />
+              )}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
     <aside className={`skills-sidebar${collapsed ? ' collapsed' : ''}`}>
       <div

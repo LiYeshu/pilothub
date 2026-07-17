@@ -151,8 +151,10 @@ function App() {
   } | null>(null)
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null)
   const [updateBody, setUpdateBody] = useState<string | null>(null)
+  const [updateChecking, setUpdateChecking] = useState(false)
   const [updateInstalling, setUpdateInstalling] = useState(false)
   const [updateDone, setUpdateDone] = useState(false)
+  const [showAppUpdateModal, setShowAppUpdateModal] = useState(false)
   const updateObjRef = useRef<Update | null>(null) as MutableRefObject<Update | null>
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'updated' | 'name'>('updated')
@@ -352,9 +354,11 @@ function App() {
     }
   }
 
-  const loadPlan = useCallback(async () => {
-    setLoading(true)
-    setLoadingStartAt(Date.now())
+  const loadPlan = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true)
+      setLoadingStartAt(Date.now())
+    }
     setError(null)
     try {
       const result = await invokeTauri<OnboardingPlan>('get_onboarding_plan')
@@ -375,8 +379,10 @@ function App() {
       setError(err instanceof Error ? err.message : String(err))
       return null
     } finally {
-      setLoading(false)
-      setLoadingStartAt(null)
+      if (showLoading) {
+        setLoading(false)
+        setLoadingStartAt(null)
+      }
     }
   }, [invokeTauri])
 
@@ -552,19 +558,24 @@ function App() {
 
   useEffect(() => {
     if (isTauri) {
-      void loadPlan()
+      void loadPlan(false)
     }
   }, [isTauri, loadPlan])
 
   const handleDismissUpdate = useCallback(() => {
-    setUpdateAvailableVersion(null)
-    setUpdateBody(null)
+    setShowAppUpdateModal(false)
   }, [])
+
+  const handleOpenUpdate = useCallback(() => {
+    if (updateAvailableVersion) setShowAppUpdateModal(true)
+  }, [updateAvailableVersion])
 
   const handleDismissUpdateForever = useCallback(() => {
     if (updateAvailableVersion) {
       localStorage.setItem('skills-ignored-update-version', updateAvailableVersion)
     }
+    updateObjRef.current = null
+    setShowAppUpdateModal(false)
     setUpdateAvailableVersion(null)
     setUpdateBody(null)
   }, [updateAvailableVersion])
@@ -594,6 +605,7 @@ function App() {
       id: info.key,
       // Prefer i18n label if present; fallback to backend label.
       label: t(`tools.${info.key}`, { defaultValue: info.label }),
+      avatar: info.avatar,
       supports_project_scope: info.supports_project_scope,
     }))
   }, [t, enabledToolInfos])
@@ -902,24 +914,36 @@ function App() {
 
   useEffect(() => {
     if (!isTauri || !githubProxyConfigLoaded) return
+    let cancelled = false
     const ignoredVersion = localStorage.getItem('skills-ignored-update-version')
-    import('@tauri-apps/plugin-updater')
+    setUpdateChecking(true)
+    void import('@tauri-apps/plugin-updater')
       .then(({ check }) => check(updaterProxyOptions))
       .then(async (update) => {
+        if (cancelled) return
         if (update && update.version !== ignoredVersion) {
           updateObjRef.current = update
           setUpdateAvailableVersion(update.version)
+          setUpdateDone(false)
           try {
             const body = await invokeTauri<string | null>('get_github_release_notes', {
               version: update.version,
             })
+            if (cancelled) return
             setUpdateBody(body ?? update.body ?? null)
           } catch {
+            if (cancelled) return
             setUpdateBody(update.body ?? null)
           }
         }
       })
       .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setUpdateChecking(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [githubProxyConfigLoaded, invokeTauri, isTauri, updaterProxyOptions])
 
   const handleUpdateNow = useCallback(async () => {
@@ -1078,7 +1102,7 @@ function App() {
   const handleToolConfigChange = useCallback(
     async (nextConfig: ToolConfigDto) => {
       setToolConfig(nextConfig)
-      if (!isTauri) return
+      if (!isTauri) return true
       try {
         const saved = await invokeTauri<ToolConfigDto>('set_tool_config', {
           config: nextConfig,
@@ -1095,8 +1119,20 @@ function App() {
           return next
         })
         toast.success(t('toolManagement.saved'), { duration: 1600 })
+        return true
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
+        try {
+          const [config, status] = await Promise.all([
+            invokeTauri<ToolConfigDto>('get_tool_config'),
+            invokeTauri<ToolStatusDto>('get_tool_status'),
+          ])
+          setToolConfig(config)
+          setToolStatus(status)
+        } catch {
+          // Preserve the original save error.
+        }
+        return false
       }
     },
     [invokeTauri, isTauri, t],
@@ -3354,9 +3390,14 @@ function App() {
         toolCount={toolStatus?.tools.length ?? 0}
         updateCount={pendingUpdateCount}
         appVersion={appVersion}
+        updateAvailableVersion={updateAvailableVersion}
+        updateChecking={updateChecking}
+        updateInstalling={updateInstalling}
+        updateDone={updateDone}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
         onOpenSettings={handleOpenSettings}
+        onOpenUpdate={handleOpenUpdate}
         onViewChange={handleViewChange}
         onManagementTabChange={handleManagementTabChange}
         t={t}
@@ -3826,7 +3867,7 @@ function App() {
         />
       ) : null}
 
-      {updateAvailableVersion && (
+      {showAppUpdateModal && updateAvailableVersion && (
         <div className="modal-backdrop" onClick={updateInstalling ? undefined : handleDismissUpdate}>
           <div
             className="modal update-modal"

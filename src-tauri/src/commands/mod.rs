@@ -39,7 +39,8 @@ use crate::core::skills_search::{
     search_skills_online as search_skills_online_core, OnlineSkillResult,
 };
 use crate::core::sync_engine::{
-    copy_dir_recursive, sync_dir_for_tool_with_overwrite, sync_dir_hybrid, SyncMode,
+    copy_dir_recursive, sync_dir_for_tool_with_overwrite, sync_dir_hybrid,
+    sync_dir_with_mode_with_overwrite, SyncMode,
 };
 use crate::core::system_scheduler::{
     current_scheduler_config, get_auto_update_task_status, install_auto_update_task,
@@ -127,12 +128,14 @@ fn format_anyhow_error(err: anyhow::Error) -> String {
 pub struct ToolInfoDto {
     pub key: String,
     pub label: String,
+    pub avatar: Option<String>,
     pub installed: bool,
     pub enabled: bool,
     pub is_custom: bool,
     pub skills_dir: String,
     pub project_skills_dir: String,
     pub supports_project_scope: bool,
+    pub sync_mode: SyncMode,
 }
 
 #[derive(Debug, Serialize)]
@@ -146,12 +149,14 @@ pub struct ToolStatusDto {
 struct RuntimeTool {
     key: String,
     label: String,
+    avatar: Option<String>,
     installed: bool,
     enabled: bool,
     is_custom: bool,
     skills_dir: std::path::PathBuf,
     project_skills_dir: String,
     supports_project_scope: bool,
+    sync_mode: SyncMode,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -164,8 +169,10 @@ pub struct ToolConfigDto {
 pub struct CustomToolConfigDto {
     pub key: String,
     pub label: String,
+    pub avatar: Option<String>,
     pub skills_dir: String,
     pub project_skills_dir: Option<String>,
+    pub sync_mode: SyncMode,
     pub enabled: bool,
 }
 
@@ -179,8 +186,10 @@ impl From<ToolConfig> for ToolConfigDto {
                 .map(|tool| CustomToolConfigDto {
                     key: tool.key,
                     label: tool.label,
+                    avatar: tool.avatar,
                     skills_dir: tool.skills_dir,
                     project_skills_dir: tool.project_skills_dir,
+                    sync_mode: tool.sync_mode,
                     enabled: tool.enabled,
                 })
                 .collect(),
@@ -198,8 +207,10 @@ impl From<ToolConfigDto> for ToolConfig {
                 .map(|tool| CustomToolConfig {
                     key: tool.key,
                     label: tool.label,
+                    avatar: tool.avatar,
                     skills_dir: tool.skills_dir,
                     project_skills_dir: tool.project_skills_dir,
+                    sync_mode: tool.sync_mode,
                     enabled: tool.enabled,
                 })
                 .collect(),
@@ -220,12 +231,14 @@ fn runtime_tools(store: &SkillStore, include_disabled: bool) -> anyhow::Result<V
         tools.push(RuntimeTool {
             key: adapter.id.as_key().to_string(),
             label: adapter.display_name.to_string(),
+            avatar: None,
             installed: enabled && detected,
             enabled,
             is_custom: false,
             skills_dir: resolve_default_path(&adapter)?,
             project_skills_dir: project_relative_skills_dir(&adapter).to_string(),
             supports_project_scope: supports_project_scope(&adapter),
+            sync_mode: SyncMode::Auto,
         });
     }
 
@@ -239,12 +252,14 @@ fn runtime_tools(store: &SkillStore, include_disabled: bool) -> anyhow::Result<V
         tools.push(RuntimeTool {
             key: custom.key,
             label: custom.label,
+            avatar: custom.avatar,
             installed: custom.enabled && detected,
             enabled: custom.enabled,
             is_custom: true,
             skills_dir,
             project_skills_dir: custom.project_skills_dir.unwrap_or_default(),
             supports_project_scope,
+            sync_mode: custom.sync_mode,
         });
     }
 
@@ -325,12 +340,14 @@ pub async fn get_tool_status(store: State<'_, SkillStore>) -> Result<ToolStatusD
             tools.push(ToolInfoDto {
                 key: tool.key.clone(),
                 label: tool.label,
+                avatar: tool.avatar,
                 installed: tool.installed,
                 enabled: tool.enabled,
                 is_custom: tool.is_custom,
                 skills_dir: tool.skills_dir.to_string_lossy().to_string(),
                 project_skills_dir: tool.project_skills_dir,
                 supports_project_scope: tool.supports_project_scope,
+                sync_mode: tool.sync_mode,
             });
             if tool.installed {
                 installed.push(tool.key);
@@ -981,25 +998,33 @@ pub async fn sync_skill_to_tool(
         let overwrite = overwrite.unwrap_or(false)
             || (overwriteIfSameContent.unwrap_or(false)
                 && target_has_same_content(sourcePath.as_ref(), &target));
-        let result =
+        let result = (if runtime_tool.is_custom {
+            sync_dir_with_mode_with_overwrite(
+                runtime_tool.sync_mode,
+                sourcePath.as_ref(),
+                &target,
+                overwrite,
+            )
+        } else {
             sync_dir_for_tool_with_overwrite(&tool, sourcePath.as_ref(), &target, overwrite)
-                .map_err(|err| {
-                    let msg = err.to_string();
-                    if msg.contains("target already exists") {
-                        anyhow::anyhow!("TARGET_EXISTS|{}", target.to_string_lossy())
-                    } else if msg.contains("os error 5")
-                        || msg.contains("Access is denied")
-                        || msg.contains("Permission denied")
-                    {
-                        anyhow::anyhow!(
-                            "TOOL_NOT_WRITABLE|{}|{}",
-                            runtime_tool.label,
-                            tool_root.to_string_lossy()
-                        )
-                    } else {
-                        anyhow::anyhow!(msg)
-                    }
-                })?;
+        })
+        .map_err(|err| {
+            let msg = err.to_string();
+            if msg.contains("target already exists") {
+                anyhow::anyhow!("TARGET_EXISTS|{}", target.to_string_lossy())
+            } else if msg.contains("os error 5")
+                || msg.contains("Access is denied")
+                || msg.contains("Permission denied")
+            {
+                anyhow::anyhow!(
+                    "TOOL_NOT_WRITABLE|{}|{}",
+                    runtime_tool.label,
+                    tool_root.to_string_lossy()
+                )
+            } else {
+                anyhow::anyhow!(msg)
+            }
+        })?;
 
         // Some tools share the same skills directory; keep DB records consistent across them.
         let group = runtime_tools_sharing_dir(&store, &runtime_tool, scope)?;

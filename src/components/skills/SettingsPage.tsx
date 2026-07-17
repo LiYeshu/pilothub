@@ -1,8 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Database, Github, Palette, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Database, ExternalLink, Github, Palette, RefreshCw } from 'lucide-react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import type { TFunction } from 'i18next'
 import type { DownloadOptions, Update } from '@tauri-apps/plugin-updater'
+import { toast } from 'sonner'
 import type { GithubProxyConfigDto } from './types'
+
+const PROJECT_REPOSITORY_URL = 'https://github.com/qufei1993/skills-hub'
 
 type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'done' | 'error'
 type UpdaterProxyOptions = { proxy?: string }
@@ -139,6 +143,18 @@ const SettingsPage = ({
     void loadAppVersion()
     return () => { updateRef.current = null }
   }, [loadAppVersion])
+
+  const handleOpenProject = useCallback(async () => {
+    try {
+      if (isTauri) {
+        await openUrl(PROJECT_REPOSITORY_URL)
+      } else {
+        window.open(PROJECT_REPOSITORY_URL, '_blank', 'noopener,noreferrer')
+      }
+    } catch {
+      toast.error(t('projectLink.openFailed'))
+    }
+  }, [isTauri, t])
 
   return (
     <div className="settings-page">
@@ -359,6 +375,21 @@ const SettingsPage = ({
               </div>
             </div>
             <div className="settings-card-body">
+              <div className="settings-project-row">
+                <div className="settings-item-info">
+                  <div className="settings-item-title">{t('projectLink.title')}</div>
+                  <div className="settings-item-desc">{t('projectLink.description')}</div>
+                </div>
+                <button
+                  className="btn btn-secondary btn-sm settings-project-link"
+                  type="button"
+                  onClick={() => void handleOpenProject()}
+                  aria-label={t('projectLink.open')}
+                >
+                  {t('projectLink.view')}
+                  <ExternalLink size={14} />
+                </button>
+              </div>
               <div className="settings-field">
                 <label className="settings-label" htmlFor="settings-github-token">
                   {t('githubToken')}

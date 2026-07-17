@@ -253,6 +253,7 @@ const AddSkillModal = ({
                                 <ToolIcon
                                   toolKey={tool.id}
                                   label={tool.label}
+                                  avatar={tool.avatar}
                                   className="add-tool-logo"
                                 />
                                 <span className="add-tool-label">{tool.label}</span>
