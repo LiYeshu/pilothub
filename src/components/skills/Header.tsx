@@ -119,7 +119,9 @@ const Header = ({
         data-tauri-drag-region
         onPointerDown={startWindowDrag}
       >
-        <div className="sidebar-logo" data-tauri-drag-region>SH</div>
+        <div className="sidebar-logo" data-tauri-drag-region aria-hidden="true">
+          <span className="sidebar-logo-mark" data-tauri-drag-region />
+        </div>
         <div className="sidebar-brand-copy" data-tauri-drag-region>
           <strong data-tauri-drag-region>{t('appName')}</strong>
           <span data-tauri-drag-region>{t('workspaceSubtitle')}</span>
