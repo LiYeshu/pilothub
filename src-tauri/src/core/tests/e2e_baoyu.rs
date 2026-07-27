@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::core::installer::{install_git_skill_from_selection, list_git_skills};
+use crate::core::installer::{install_git_skill_from_selection, list_git_skills, InstallResult};
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::sync_engine::sync_dir_for_tool_with_overwrite;
 use crate::core::tool_adapters::{adapter_by_key, resolve_default_path};
@@ -41,31 +41,35 @@ fn installs_baoyu_cover_image_for_claude_and_codex() {
         })
         .collect::<Vec<_>>();
 
-    assert!(!central_path.exists(), "central Skill already exists");
-    for (_, target) in &targets {
-        assert!(
-            std::fs::symlink_metadata(target).is_err(),
-            "Agent target already exists: {:?}",
-            target
-        );
-    }
-
     let app = tauri::test::mock_app();
-    let candidates = list_git_skills(app.handle(), &store, REPO_URL).expect("scan repository");
-    assert!(
-        candidates
-            .iter()
-            .any(|item| item.name == SKILL_NAME && item.subpath == SKILL_SUBPATH),
-        "baoyu-cover-image was not discovered: {:?}",
-        candidates
-            .iter()
-            .map(|item| (&item.name, &item.subpath))
-            .collect::<Vec<_>>()
-    );
-
-    let installed =
+    let installed = if central_path.exists() {
+        let record = store
+            .list_skills()
+            .expect("list installed Skills")
+            .into_iter()
+            .find(|record| record.name == SKILL_NAME)
+            .expect("installed Skill record");
+        InstallResult {
+            skill_id: record.id,
+            name: record.name,
+            central_path: record.central_path.into(),
+            content_hash: record.content_hash,
+        }
+    } else {
+        let candidates = list_git_skills(app.handle(), &store, REPO_URL).expect("scan repository");
+        assert!(
+            candidates
+                .iter()
+                .any(|item| item.name == SKILL_NAME && item.subpath == SKILL_SUBPATH),
+            "baoyu-cover-image was not discovered: {:?}",
+            candidates
+                .iter()
+                .map(|item| (&item.name, &item.subpath))
+                .collect::<Vec<_>>()
+        );
         install_git_skill_from_selection(app.handle(), &store, REPO_URL, SKILL_SUBPATH, None)
-            .expect("install baoyu-cover-image");
+            .expect("install baoyu-cover-image")
+    };
     assert_eq!(installed.name, SKILL_NAME);
     assert!(installed.central_path.join("SKILL.md").is_file());
 
@@ -74,9 +78,15 @@ fn installs_baoyu_cover_image_for_claude_and_codex() {
         .unwrap_or_default()
         .as_millis() as i64;
     for (tool, target) in targets {
-        let outcome =
-            sync_dir_for_tool_with_overwrite(tool, &installed.central_path, &target, false)
-                .expect("sync Skill to Agent");
+        let mode = if std::fs::symlink_metadata(&target).is_ok() {
+            assert_target_points_to(&target, &installed.central_path);
+            "symlink".to_string()
+        } else {
+            let outcome =
+                sync_dir_for_tool_with_overwrite(tool, &installed.central_path, &target, false)
+                    .expect("sync Skill to Agent");
+            format!("{:?}", outcome.mode_used).to_lowercase()
+        };
         assert!(target.join("SKILL.md").is_file());
         assert_target_points_to(&target, &installed.central_path);
         store
@@ -87,7 +97,7 @@ fn installs_baoyu_cover_image_for_claude_and_codex() {
                 scope: "global".to_string(),
                 project_path: None,
                 target_path: target.to_string_lossy().to_string(),
-                mode: format!("{:?}", outcome.mode_used).to_lowercase(),
+                mode,
                 status: "ok".to_string(),
                 last_error: None,
                 synced_at: Some(now),

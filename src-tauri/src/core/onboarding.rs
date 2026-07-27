@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use super::central_repo::resolve_central_repo_path;
 use super::content_hash::hash_dir;
 use super::skill_store::SkillStore;
-use super::tool_adapters::{default_tool_adapters, scan_tool_dir, DetectedSkill};
+use super::tool_adapters::{
+    default_tool_adapters, resolve_default_path, resolve_default_path_from_home, scan_tool_dir,
+    DetectedSkill,
+};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OnboardingVariant {
@@ -91,16 +94,26 @@ fn build_onboarding_plan_with_claude_dir(
     let mut all_detected: Vec<DetectedSkill> = Vec::new();
     let mut scanned = 0usize;
     let mut scanned_claude = false;
+    let real_home = dirs::home_dir();
 
     for adapter in &adapters {
-        if !home.join(adapter.relative_detect_dir).exists() {
+        let dir = if real_home.as_deref() == Some(home) {
+            resolve_default_path(adapter)?
+        } else {
+            resolve_default_path_from_home(adapter, home)
+        };
+        let detected_root = if adapter.id.as_key() == "codex" {
+            dir.parent().unwrap_or(&dir).to_path_buf()
+        } else {
+            home.join(adapter.relative_detect_dir)
+        };
+        if !detected_root.exists() {
             continue;
         }
         scanned += 1;
         if adapter.id.as_key() == "claude_code" {
             scanned_claude = true;
         }
-        let dir = home.join(adapter.relative_skills_dir);
         let detected = scan_tool_dir(adapter, &dir)?;
         all_detected.extend(filter_detected(
             detected,

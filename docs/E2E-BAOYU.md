@@ -26,7 +26,7 @@ The verification used PilotHub's existing core modules:
 | --- | --- |
 | PilotHub source | `~/.pilothub/extensions/baoyu-cover-image` |
 | Claude Code target | `~/.claude/skills/baoyu-cover-image` |
-| Codex target | `~/.codex/skills/baoyu-cover-image` |
+| Codex target | `$CODEX_HOME/skills/baoyu-cover-image` |
 | Claude Code sync mode | Symlink |
 | Codex sync mode | Symlink |
 | Both links point to the PilotHub source | PASS |
@@ -34,6 +34,11 @@ The verification used PilotHub's existing core modules:
 | Database source type and subpath | `git`, `skills/baoyu-cover-image` |
 | Database Skill and target status | `ok` |
 | Existing target overwritten | No |
+| Fresh Codex process discovery | `DISCOVERED` |
+
+On this machine, `CODEX_HOME` resolves to `~/.codex_lys`. A fresh Codex CLI process loaded the Skill through the PilotHub symlink, reported the exact name `baoyu-cover-image`, and identified its blocking first step as loading `EXTEND.md` preferences.
+
+The Codex adapter now honors `CODEX_HOME`. When the variable is unavailable, it prefers the standard `~/.codex` directory when configured, detects one configured `~/.codex_*` home, and otherwise falls back to `~/.codex`.
 
 ## Repeatable test
 
@@ -43,8 +48,8 @@ The ignored Rust test `installs_baoyu_cover_image_for_claude_and_codex` exercise
 PILOTHUB_E2E_REAL_HOME=1
 ```
 
-The test also stops before installation if the central Skill or either Agent target already exists.
+The test installs the Skill when absent. On repeat runs, it verifies the existing central Skill and targets, then creates only missing Agent links.
 
-## Remaining runtime check
+## Remaining Claude Code check
 
-Filesystem discovery is verified. This machine did not expose standalone `claude` or `codex` CLI executables during the run, so invoking the Skill inside a fresh Agent process and generating a cover image remains a manual acceptance step. Image generation is intentionally outside this installation test.
+Codex filesystem discovery and fresh-process loading are verified. This machine did not expose a standalone `claude` CLI executable, so fresh-process Claude Code discovery remains a manual acceptance step. Image generation is intentionally outside this installation test.

@@ -4,8 +4,9 @@ use crate::core::skill_store::{SkillRecord, SkillStore, SkillTargetRecord};
 use crate::core::sync_engine::SyncMode;
 use crate::core::tool_adapters::{
     adapter_by_key, adapters_sharing_project_skills_dir, adapters_sharing_skills_dir,
-    load_tool_config, project_relative_skills_dir, resolve_project_path, save_tool_config,
-    scan_tool_dir, supports_project_scope, CustomToolConfig, ToolAdapter, ToolConfig, ToolId,
+    load_tool_config, project_relative_skills_dir, resolve_codex_home, resolve_project_path,
+    save_tool_config, scan_tool_dir, supports_project_scope, CustomToolConfig, ToolAdapter,
+    ToolConfig, ToolId,
 };
 
 fn make_custom_tool(key: &str, label: &str, skills_dir: &str) -> CustomToolConfig {
@@ -165,6 +166,44 @@ fn legacy_custom_tool_config_defaults_avatar_and_sync_mode() {
 fn adapter_by_key_finds_known_tool() {
     let a = adapter_by_key("codex").unwrap();
     assert_eq!(a.id, ToolId::Codex);
+}
+
+#[test]
+fn codex_adapter_detects_single_configured_custom_home() {
+    let home = tempfile::tempdir().unwrap();
+    fs::create_dir_all(home.path().join(".codex")).unwrap();
+    fs::create_dir_all(home.path().join(".codex_lys")).unwrap();
+    fs::write(home.path().join(".codex_lys/config.toml"), "").unwrap();
+
+    assert_eq!(
+        resolve_codex_home(home.path(), None),
+        home.path().join(".codex_lys")
+    );
+}
+
+#[test]
+fn codex_adapter_honors_explicit_codex_home() {
+    let home = tempfile::tempdir().unwrap();
+    let configured = home.path().join("custom-codex");
+
+    assert_eq!(
+        resolve_codex_home(home.path(), Some(configured.clone().into_os_string())),
+        configured
+    );
+}
+
+#[test]
+fn codex_adapter_prefers_configured_default_home() {
+    let home = tempfile::tempdir().unwrap();
+    fs::create_dir_all(home.path().join(".codex")).unwrap();
+    fs::write(home.path().join(".codex/config.toml"), "").unwrap();
+    fs::create_dir_all(home.path().join(".codex_lys")).unwrap();
+    fs::write(home.path().join(".codex_lys/config.toml"), "").unwrap();
+
+    assert_eq!(
+        resolve_codex_home(home.path(), None),
+        home.path().join(".codex")
+    );
 }
 
 #[test]

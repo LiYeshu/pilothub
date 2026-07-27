@@ -785,7 +785,49 @@ pub fn adapter_by_key(key: &str) -> Option<ToolAdapter> {
 
 pub fn resolve_default_path(adapter: &ToolAdapter) -> Result<PathBuf> {
     let home = dirs::home_dir().context("failed to resolve home directory")?;
-    Ok(home.join(adapter.relative_skills_dir))
+    if adapter.id == ToolId::Codex {
+        return Ok(resolve_codex_home(&home, std::env::var_os("CODEX_HOME")).join("skills"));
+    }
+    Ok(resolve_default_path_from_home(adapter, &home))
+}
+
+pub(crate) fn resolve_default_path_from_home(adapter: &ToolAdapter, home: &Path) -> PathBuf {
+    if adapter.id == ToolId::Codex {
+        return resolve_codex_home(home, None).join("skills");
+    }
+    home.join(adapter.relative_skills_dir)
+}
+
+fn resolve_codex_home(home: &Path, configured: Option<std::ffi::OsString>) -> PathBuf {
+    if let Some(configured) = configured.filter(|value| !value.is_empty()) {
+        let configured = PathBuf::from(configured);
+        return if configured.is_absolute() {
+            configured
+        } else {
+            home.join(configured)
+        };
+    }
+
+    let default = home.join(".codex");
+    if default.join("config.toml").is_file() || default.join("auth.json").is_file() {
+        return default;
+    }
+
+    let mut configured_homes = std::fs::read_dir(home)
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(".codex_"))
+                && (path.join("config.toml").is_file() || path.join("auth.json").is_file())
+        });
+    match (configured_homes.next(), configured_homes.next()) {
+        (Some(path), None) => path,
+        _ => default,
+    }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
