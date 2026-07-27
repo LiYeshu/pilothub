@@ -1,6 +1,6 @@
-# Skills Hub UI Design Guidelines
+# PilotHub UI Design Guidelines
 
-This document defines the durable visual and interaction rules for Skills Hub. It is a compact reference for frontend work, not a pixel specification.
+This document defines the durable visual and interaction rules for PilotHub. It is a compact reference for frontend work, not a pixel specification.
 
 The original HTML prototype establishes the design direction. The current React implementation may refine dimensions, spacing, and component structure while preserving the rules below. Runtime tokens in `src/index.css` remain the source of truth for exact values.
 
@@ -26,7 +26,7 @@ Do not expand this file with details that are already obvious from the code. Add
 
 ## Design posture
 
-Skills Hub uses a neutral, modern utility aesthetic: calm, compact, and quietly confident. It is a desktop management tool, so clarity and operational density take priority over decoration.
+PilotHub uses a neutral, modern utility aesthetic: calm, compact, and quietly confident. It is a desktop management tool, so clarity and operational density take priority over decoration.
 
 - Make the current task and primary action obvious.
 - Prefer whitespace, alignment, and subtle borders over extra containers.
@@ -124,7 +124,7 @@ Color rules:
 
 ## Responsive reduction
 
-Skills Hub is desktop-first, but the interface must remain usable in constrained windows.
+PilotHub is desktop-first, but the interface must remain usable in constrained windows.
 
 When space decreases, adapt in this order:
 
