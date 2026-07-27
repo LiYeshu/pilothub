@@ -25,3 +25,7 @@ pub mod tool_adapters;
 #[cfg(test)]
 #[path = "tests/e2e_baoyu.rs"]
 mod e2e_baoyu;
+
+#[cfg(test)]
+#[path = "tests/e2e_apm.rs"]
+mod e2e_apm;
