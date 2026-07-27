@@ -849,6 +849,17 @@ pub struct GitSkillCandidate {
     pub name: String,
     pub description: Option<String>,
     pub subpath: String,
+    pub contents: Vec<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct SkillCollection {
+    pub id: String,
+    pub name: String,
+    pub source_url: String,
+    pub author: Option<String>,
+    pub license: Option<String>,
+    pub skills: Vec<GitSkillCandidate>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -860,11 +871,20 @@ pub struct LocalSkillCandidate {
     pub reason: Option<String>,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn list_git_skills<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     store: &SkillStore,
     repo_url: &str,
 ) -> Result<Vec<GitSkillCandidate>> {
+    Ok(scan_git_skill_collection(app, store, repo_url)?.skills)
+}
+
+pub fn scan_git_skill_collection<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    store: &SkillStore,
+    repo_url: &str,
+) -> Result<SkillCollection> {
     let parsed = parse_github_url(repo_url);
     let (repo_dir, _rev) = clone_to_cache(
         app,
@@ -885,6 +905,7 @@ pub fn list_git_skills<R: tauri::Runtime>(
                 name,
                 description: desc,
                 subpath: subpath.to_string(),
+                contents: inspect_skill_contents(&dir),
             });
         } else if dir.is_dir() {
             for p in collect_skill_dirs(&dir) {
@@ -898,12 +919,13 @@ pub fn list_git_skills<R: tauri::Runtime>(
                     name,
                     description: desc,
                     subpath: rel,
+                    contents: inspect_skill_contents(&p),
                 });
             }
         }
         out.sort_by(|a, b| a.name.cmp(&b.name));
         out.dedup_by(|a, b| a.subpath == b.subpath);
-        return Ok(out);
+        return Ok(build_skill_collection(repo_url, &parsed, &repo_dir, out));
     }
 
     // Root-level skill
@@ -914,6 +936,7 @@ pub fn list_git_skills<R: tauri::Runtime>(
             name,
             description: desc,
             subpath: ".".to_string(),
+            contents: inspect_skill_contents(&repo_dir),
         });
     }
 
@@ -928,13 +951,81 @@ pub fn list_git_skills<R: tauri::Runtime>(
             name,
             description: desc,
             subpath: rel,
+            contents: inspect_skill_contents(&p),
         });
     }
 
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out.dedup_by(|a, b| a.subpath == b.subpath);
 
-    Ok(out)
+    Ok(build_skill_collection(repo_url, &parsed, &repo_dir, out))
+}
+
+fn inspect_skill_contents(skill_dir: &Path) -> Vec<String> {
+    let mut contents = Vec::new();
+    if skill_dir.join("SKILL.md").is_file() {
+        contents.push("SKILL.md".to_string());
+    }
+    for directory in ["scripts", "templates", "references"] {
+        if skill_dir.join(directory).is_dir() {
+            contents.push(directory.to_string());
+        }
+    }
+    contents
+}
+
+fn build_skill_collection(
+    source_url: &str,
+    parsed: &ParsedGitSource,
+    repo_dir: &Path,
+    skills: Vec<GitSkillCandidate>,
+) -> SkillCollection {
+    let github_identity = parsed
+        .clone_url
+        .strip_prefix("https://github.com/")
+        .and_then(|value| value.strip_suffix(".git"))
+        .and_then(|value| value.split_once('/'));
+    let fallback_name = repo_dir
+        .file_name()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "skill-collection".to_string());
+    let (author, name) = github_identity
+        .map(|(owner, repo)| (Some(owner.to_string()), repo.to_string()))
+        .unwrap_or((None, fallback_name));
+    let id = author
+        .as_ref()
+        .map(|owner| format!("{owner}/{name}"))
+        .unwrap_or_else(|| name.clone());
+
+    SkillCollection {
+        id,
+        name,
+        source_url: source_url.to_string(),
+        author,
+        license: detect_repository_license(repo_dir),
+        skills,
+    }
+}
+
+fn detect_repository_license(repo_dir: &Path) -> Option<String> {
+    for filename in ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING"] {
+        let path = repo_dir.join(filename);
+        let Ok(content) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        let normalized = content.to_ascii_lowercase();
+        if normalized.contains("mit license") {
+            return Some("MIT".to_string());
+        }
+        if normalized.contains("apache license") && normalized.contains("version 2.0") {
+            return Some("Apache-2.0".to_string());
+        }
+        if normalized.contains("gnu general public license") {
+            return Some("GPL".to_string());
+        }
+        return Some(filename.to_string());
+    }
+    None
 }
 
 pub fn list_local_skills(base_path: &Path) -> Result<Vec<LocalSkillCandidate>> {

@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use crate::core::installer::{install_git_skill_from_selection, list_git_skills, InstallResult};
+use crate::core::installer::{
+    install_git_skill_from_selection, scan_git_skill_collection, InstallResult,
+};
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::sync_engine::sync_dir_for_tool_with_overwrite;
 use crate::core::tool_adapters::{adapter_by_key, resolve_default_path};
@@ -42,6 +44,25 @@ fn installs_baoyu_cover_image_for_antigravity_and_codex() {
         .collect::<Vec<_>>();
 
     let app = tauri::test::mock_app();
+    let collection =
+        scan_git_skill_collection(app.handle(), &store, REPO_URL).expect("scan repository");
+    assert_eq!(collection.name, "baoyu-skills");
+    assert_eq!(collection.author.as_deref(), Some("JimLiu"));
+    assert_eq!(collection.license.as_deref(), Some("MIT"));
+    assert!(collection.skills.len() >= 20);
+    assert!(
+        collection
+            .skills
+            .iter()
+            .any(|item| item.name == SKILL_NAME && item.subpath == SKILL_SUBPATH),
+        "baoyu-cover-image was not discovered: {:?}",
+        collection
+            .skills
+            .iter()
+            .map(|item| (&item.name, &item.subpath))
+            .collect::<Vec<_>>()
+    );
+
     let installed = if central_path.exists() {
         let record = store
             .list_skills()
@@ -56,17 +77,6 @@ fn installs_baoyu_cover_image_for_antigravity_and_codex() {
             content_hash: record.content_hash,
         }
     } else {
-        let candidates = list_git_skills(app.handle(), &store, REPO_URL).expect("scan repository");
-        assert!(
-            candidates
-                .iter()
-                .any(|item| item.name == SKILL_NAME && item.subpath == SKILL_SUBPATH),
-            "baoyu-cover-image was not discovered: {:?}",
-            candidates
-                .iter()
-                .map(|item| (&item.name, &item.subpath))
-                .collect::<Vec<_>>()
-        );
         install_git_skill_from_selection(app.handle(), &store, REPO_URL, SKILL_SUBPATH, None)
             .expect("install baoyu-cover-image")
     };

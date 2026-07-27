@@ -1,13 +1,16 @@
 import { memo, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import type { TFunction } from 'i18next'
-import type { GitSkillCandidate } from '../types'
+import type { GitSkillCandidate, SkillCollection } from '../types'
 
 type GitPickModalProps = {
   open: boolean
   loading: boolean
+  collection: SkillCollection | null
   gitCandidates: GitSkillCandidate[]
   gitCandidateSelected: Record<string, boolean>
+  installScope: 'global' | 'project'
+  targetLabels: string[]
   onRequestClose: () => void
   onCancel: () => void
   onToggleCandidate: (subpath: string, checked: boolean) => void
@@ -18,8 +21,11 @@ type GitPickModalProps = {
 const GitPickModal = ({
   open,
   loading,
+  collection,
   gitCandidates,
   gitCandidateSelected,
+  installScope,
+  targetLabels,
   onRequestClose,
   onCancel,
   onToggleCandidate,
@@ -64,6 +70,43 @@ const GitPickModal = ({
           </button>
         </div>
         <div className="modal-body">
+          {collection ? (
+            <section className="collection-preview" aria-label={t('collectionPreview.title')}>
+              <div className="collection-preview-heading">
+                <div>
+                  <div className="collection-preview-name">{collection.name}</div>
+                  <div className="collection-preview-source">{collection.source_url}</div>
+                </div>
+                <span className="collection-preview-count">
+                  {t('collectionPreview.skillCount', {
+                    count: collection.skills.length,
+                  })}
+                </span>
+              </div>
+              <dl className="collection-preview-meta">
+                <div>
+                  <dt>{t('collectionPreview.author')}</dt>
+                  <dd>{collection.author ?? t('collectionPreview.unknown')}</dd>
+                </div>
+                <div>
+                  <dt>{t('collectionPreview.license')}</dt>
+                  <dd>{collection.license ?? t('collectionPreview.unknown')}</dd>
+                </div>
+                <div>
+                  <dt>{t('collectionPreview.scope')}</dt>
+                  <dd>{t(`scope.${installScope}`)}</dd>
+                </div>
+                <div>
+                  <dt>{t('collectionPreview.targets')}</dt>
+                  <dd>
+                    {targetLabels.length > 0
+                      ? targetLabels.join(', ')
+                      : t('collectionPreview.noTargets')}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
           <p className="label">{t('gitPickBody')}</p>
           <div className="pick-search">
             <Search size={16} className="search-icon-abs" />
@@ -110,6 +153,11 @@ const GitPickModal = ({
                     <div className="pick-item-desc">{c.description}</div>
                   ) : null}
                   <div className="pick-item-path">{c.subpath}</div>
+                  <div className="pick-item-contents">
+                    {c.contents.map((content) => (
+                      <span key={content}>{content}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}

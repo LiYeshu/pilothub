@@ -14,11 +14,12 @@ The repository currently contains 21 public `SKILL.md` files under its main Skil
 
 The verification used PilotHub's existing core modules:
 
-1. `list_git_skills` cloned and scanned the multi-Skill repository.
-2. The scan returned the `baoyu-cover-image` candidate at the expected subpath.
-3. `install_git_skill_from_selection` installed only that candidate.
-4. `sync_dir_for_tool_with_overwrite` synchronized it to the Antigravity and Codex adapters without overwrite.
-5. `SkillStore` persisted the installed Skill and both global targets.
+1. `scan_git_skill_collection` cloned and scanned the multi-Skill repository.
+2. The Collection preview resolved the repository name, author, MIT license, Skill count, and per-Skill content markers without changing the database.
+3. The scan returned the `baoyu-cover-image` candidate at the expected subpath.
+4. `install_git_skill_from_selection` installed only that candidate.
+5. `sync_dir_for_tool_with_overwrite` synchronized it to the Antigravity and Codex adapters without overwrite.
+6. `SkillStore` persisted the installed Skill and both global targets.
 
 ## Verified state
 
@@ -35,6 +36,8 @@ The verification used PilotHub's existing core modules:
 | Database Skill and target status | `ok` |
 | Existing target overwritten | No |
 | Fresh Codex process discovery | `DISCOVERED` |
+| Collection identity | `JimLiu/baoyu-skills` |
+| Collection license | `MIT` |
 
 On this machine, `CODEX_HOME` resolves to `~/.codex_lys`. A fresh Codex CLI process loaded the Skill through the PilotHub symlink, reported the exact name `baoyu-cover-image`, and identified its blocking first step as loading `EXTEND.md` preferences.
 

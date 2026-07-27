@@ -305,15 +305,28 @@ fn lists_and_installs_git_skills_without_network() {
         "---\nname: A\n---\n",
     )
     .unwrap();
+    fs::create_dir_all(repo_dir.path().join("skills/a/scripts")).unwrap();
+    fs::write(repo_dir.path().join("skills/a/scripts/run.sh"), "echo ok\n").unwrap();
+    fs::write(repo_dir.path().join("LICENSE"), "MIT License\n").unwrap();
     let repo = init_git_repo(repo_dir.path());
     commit_all(&repo, "add skills");
 
-    let candidates = super::list_git_skills(
+    let collection = super::scan_git_skill_collection(
         app.handle(),
         &store,
         repo_dir.path().to_string_lossy().as_ref(),
     )
     .unwrap();
+    assert_eq!(collection.license.as_deref(), Some("MIT"));
+    assert_eq!(collection.skills.len(), 2);
+    let skill_a = collection
+        .skills
+        .iter()
+        .find(|candidate| candidate.name == "A")
+        .unwrap();
+    assert_eq!(skill_a.contents, ["SKILL.md", "scripts"]);
+
+    let candidates = collection.skills;
     let subpaths: Vec<String> = candidates.into_iter().map(|c| c.subpath).collect();
     assert!(subpaths.contains(&".".to_string()));
     assert!(subpaths.iter().any(|s| s.ends_with("skills/a")));
@@ -327,6 +340,25 @@ fn lists_and_installs_git_skills_without_network() {
     )
     .unwrap();
     assert!(res.central_path.exists());
+}
+
+#[test]
+fn collection_uses_github_repository_identity() {
+    let repo_dir = tempfile::tempdir().unwrap();
+    fs::write(repo_dir.path().join("LICENSE"), "MIT License\n").unwrap();
+    let parsed = super::parse_github_url("https://github.com/JimLiu/baoyu-skills");
+
+    let collection = super::build_skill_collection(
+        "https://github.com/JimLiu/baoyu-skills",
+        &parsed,
+        repo_dir.path(),
+        Vec::new(),
+    );
+
+    assert_eq!(collection.id, "JimLiu/baoyu-skills");
+    assert_eq!(collection.name, "baoyu-skills");
+    assert_eq!(collection.author.as_deref(), Some("JimLiu"));
+    assert_eq!(collection.license.as_deref(), Some("MIT"));
 }
 
 #[test]

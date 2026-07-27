@@ -24,8 +24,8 @@ use crate::core::featured_skills::{fetch_featured_skills, FeaturedSkill};
 use crate::core::github_search::{search_github_repos, RepoSummary};
 use crate::core::installer::{
     install_git_skill, install_git_skill_from_selection, install_local_skill,
-    install_local_skill_from_selection, list_git_skills, list_local_skills,
-    update_managed_skill_from_source, GitSkillCandidate, InstallResult, LocalSkillCandidate,
+    install_local_skill_from_selection, list_local_skills, scan_git_skill_collection,
+    update_managed_skill_from_source, InstallResult, LocalSkillCandidate, SkillCollection,
 };
 use crate::core::network_proxy::{
     get_github_proxy_config as get_github_proxy_config_core,
@@ -906,9 +906,9 @@ pub async fn list_git_skills_cmd(
     app: tauri::AppHandle,
     store: State<'_, SkillStore>,
     repoUrl: String,
-) -> Result<Vec<GitSkillCandidate>, String> {
+) -> Result<SkillCollection, String> {
     let store = store.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || list_git_skills(&app, &store, &repoUrl))
+    tauri::async_runtime::spawn_blocking(move || scan_git_skill_collection(&app, &store, &repoUrl))
         .await
         .map_err(|err| err.to_string())?
         .map_err(format_anyhow_error)
