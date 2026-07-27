@@ -4,8 +4,14 @@ use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use tauri::Manager;
 
-const DB_FILE_NAME: &str = "skills_hub.db";
-const LEGACY_APP_IDENTIFIERS: &[&str] = &["com.tauri.dev", "com.tauri.dev.skillshub"];
+const DB_FILE_NAME: &str = "pilothub.db";
+const LEGACY_DB_FILE_NAME: &str = "skills_hub.db";
+const LEGACY_APP_IDENTIFIERS: &[&str] = &[
+    "com.qufei1993.skillshub",
+    "com.tauri.dev",
+    "com.tauri.dev.skillshub",
+    "com.pilothub.desktop",
+];
 
 // Schema versioning: bump when making changes and add a migration step.
 const SCHEMA_VERSION: i32 = 6;
@@ -204,6 +210,37 @@ impl SkillStore {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 params![key, value],
             )?;
+            Ok(())
+        })
+    }
+
+    pub fn rewrite_central_paths(&self, old_base: &Path, new_base: &Path) -> Result<()> {
+        self.with_conn(|conn| {
+            let tx = conn.unchecked_transaction()?;
+            let mut stmt = tx.prepare("SELECT id, central_path FROM skills")?;
+            let paths = stmt
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            drop(stmt);
+
+            for (id, current) in paths {
+                let current_path = PathBuf::from(&current);
+                if let Ok(relative) = current_path.strip_prefix(old_base) {
+                    let next = new_base.join(relative).to_string_lossy().to_string();
+                    tx.execute(
+                        "UPDATE skills SET central_path = ?1, updated_at = ?2 WHERE id = ?3",
+                        params![next, now_ms(), id],
+                    )?;
+                }
+            }
+            tx.execute(
+                "INSERT INTO settings (key, value) VALUES ('central_repo_path', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![new_base.to_string_lossy().as_ref()],
+            )?;
+            tx.commit()?;
             Ok(())
         })
     }
@@ -800,12 +837,17 @@ fn now_ms() -> i64 {
 }
 
 pub fn default_db_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf> {
+    if let Some(home) = dirs::home_dir() {
+        let layout = super::storage_migration::StorageLayout::from_home(&home);
+        std::fs::create_dir_all(&layout.config)
+            .with_context(|| format!("failed to create config dir {:?}", layout.config))?;
+        return Ok(layout.config.join(DB_FILE_NAME));
+    }
     let app_dir = app
         .path()
         .app_data_dir()
         .context("failed to resolve app data dir")?;
-    std::fs::create_dir_all(&app_dir)
-        .with_context(|| format!("failed to create app data dir {:?}", app_dir))?;
+    std::fs::create_dir_all(&app_dir)?;
     Ok(app_dir.join(DB_FILE_NAME))
 }
 
@@ -820,7 +862,7 @@ pub fn migrate_legacy_db_if_needed(target_db_path: &Path) -> Result<()> {
 
     let legacy_db_path = LEGACY_APP_IDENTIFIERS
         .iter()
-        .map(|id| data_dir.join(id).join(DB_FILE_NAME))
+        .map(|id| data_dir.join(id).join(LEGACY_DB_FILE_NAME))
         .find(|path| path.exists());
 
     let Some(legacy_db_path) = legacy_db_path else {
@@ -834,6 +876,25 @@ pub fn migrate_legacy_db_if_needed(target_db_path: &Path) -> Result<()> {
     if let Some(parent) = target_db_path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("failed to create app data dir {:?}", parent))?;
+    }
+
+    if let Some(root) = target_db_path.parent().and_then(Path::parent) {
+        let backups = root.join("backups");
+        std::fs::create_dir_all(&backups)
+            .with_context(|| format!("failed to create backup dir {:?}", backups))?;
+        let backup = backups.join(format!(
+            "skills_hub-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        ));
+        std::fs::copy(&legacy_db_path, &backup).with_context(|| {
+            format!(
+                "failed to backup legacy db {:?} -> {:?}",
+                legacy_db_path, backup
+            )
+        })?;
     }
 
     if target_db_path.exists() {

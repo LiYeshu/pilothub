@@ -29,6 +29,7 @@ import ImportModal from './components/skills/modals/ImportModal'
 import NewToolsModal from './components/skills/modals/NewToolsModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
 import SharedDirModal from './components/skills/modals/SharedDirModal'
+import StorageMigrationModal from './components/skills/modals/StorageMigrationModal'
 import SettingsPage from './components/skills/SettingsPage'
 import ToolsPage from './components/skills/ToolsPage'
 import UpdatesPage from './components/skills/UpdatesPage'
@@ -58,6 +59,7 @@ import type {
   ManagedSkill,
   OnboardingPlan,
   OnlineSkillDto,
+  StorageMigrationStatusDto,
   TagWithCountDto,
   ToolConfigDto,
   ToolOption,
@@ -129,6 +131,10 @@ function App() {
   const [showNewToolsModal, setShowNewToolsModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [storageMigrationStatus, setStorageMigrationStatus] =
+    useState<StorageMigrationStatusDto | null>(null)
+  const [showStorageMigration, setShowStorageMigration] = useState(false)
+  const [storageMigrating, setStorageMigrating] = useState(false)
   const [pendingSharedToggle, setPendingSharedToggle] = useState<{
     skill: ManagedSkill
     toolId: string
@@ -514,6 +520,37 @@ function App() {
         setError(err instanceof Error ? err.message : String(err))
       })
   }, [isTauri, invokeTauri])
+
+  useEffect(() => {
+    if (!isTauri) return
+    invokeTauri<StorageMigrationStatusDto>('get_storage_migration_status')
+      .then((status) => {
+        setStorageMigrationStatus(status)
+        setShowStorageMigration(status.required)
+      })
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : String(err))
+      })
+  }, [isTauri, invokeTauri])
+
+  const handleStorageMigration = useCallback(async () => {
+    setStorageMigrating(true)
+    try {
+      const status = await invokeTauri<StorageMigrationStatusDto>(
+        'migrate_legacy_storage_cmd',
+      )
+      setStorageMigrationStatus(status)
+      setShowStorageMigration(false)
+      await loadManagedSkills()
+      const path = await invokeTauri<string>('get_central_repo_path')
+      setStoragePath(path)
+      toast.success(t('storageMigration.success'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err), { duration: 5000 })
+    } finally {
+      setStorageMigrating(false)
+    }
+  }, [invokeTauri, loadManagedSkills, t])
 
   useEffect(() => {
     if (!isTauri) return
@@ -3281,6 +3318,14 @@ function App() {
         actionMessage={actionMessage}
         loadingStartAt={loadingStartAt}
         onCancel={handleCancelLoading}
+        t={t}
+      />
+      <StorageMigrationModal
+        open={showStorageMigration}
+        migrating={storageMigrating}
+        status={storageMigrationStatus}
+        onLater={() => setShowStorageMigration(false)}
+        onMigrate={() => void handleStorageMigration()}
         t={t}
       />
 

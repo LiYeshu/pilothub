@@ -22,6 +22,14 @@ export type OnboardingPlan = {
   groups: OnboardingGroup[]
 }
 
+export type StorageMigrationStatusDto = {
+  required: boolean
+  legacy_path: string
+  target_path: string
+  backup_root: string
+  reason?: string | null
+}
+
 export type ToolOption = {
   id: string
   label: string

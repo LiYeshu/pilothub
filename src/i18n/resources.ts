@@ -2,6 +2,18 @@ export const resources = {
   en: {
     translation: {
       appName: 'PilotHub',
+      storageMigration: {
+        title: 'Move your Skills to PilotHub',
+        subtitle: 'PilotHub now uses its own managed storage layout.',
+        moveTitle: 'Storage location',
+        safeTitle: 'Your existing data stays safe',
+        safeBody:
+          'PilotHub copies and verifies the data before switching. A backup is stored under {{path}}, and the old folder is not deleted.',
+        later: 'Later',
+        action: 'Migrate',
+        migrating: 'Migrating...',
+        success: 'Skill storage migrated to PilotHub.',
+      },
       unknown: 'unknown',
       languageShort: {
         en: 'EN',
@@ -671,6 +683,18 @@ export const resources = {
   zh: {
     translation: {
       appName: 'PilotHub',
+      storageMigration: {
+        title: '将 Skills 迁移到 PilotHub',
+        subtitle: 'PilotHub 现在使用独立的托管存储结构。',
+        moveTitle: '存储位置',
+        safeTitle: '现有数据会被保留',
+        safeBody:
+          'PilotHub 会先复制并校验数据，再切换目录。备份保存在 {{path}}，旧目录不会被删除。',
+        later: '稍后处理',
+        action: '开始迁移',
+        migrating: '正在迁移...',
+        success: 'Skill 存储已迁移到 PilotHub。',
+      },
       unknown: '未知',
       languageShort: {
         en: 'EN',

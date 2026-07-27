@@ -5,10 +5,14 @@ use std::sync::Arc;
 
 use core::cancel_token::CancelToken;
 use core::skill_store::{default_db_path, migrate_legacy_db_if_needed, SkillStore};
+use core::storage_migration::StorageLayout;
 use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind};
 
 fn init_store<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> anyhow::Result<SkillStore> {
+    if let Some(home) = dirs::home_dir() {
+        StorageLayout::from_home(&home).ensure()?;
+    }
     let db_path = default_db_path(app)?;
     migrate_legacy_db_if_needed(&db_path)?;
     let store = SkillStore::new(db_path);
@@ -112,6 +116,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_central_repo_path,
+            commands::get_storage_migration_status,
+            commands::migrate_legacy_storage_cmd,
             commands::set_central_repo_path,
             commands::get_recent_projects,
             commands::save_recent_project,
