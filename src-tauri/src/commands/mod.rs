@@ -38,6 +38,9 @@ use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::skills_search::{
     search_skills_online as search_skills_online_core, OnlineSkillResult,
 };
+use crate::core::storage_migration::{
+    migrate_legacy_storage, migration_status, StorageMigrationStatus,
+};
 use crate::core::sync_engine::{
     copy_dir_recursive, sync_dir_for_tool_with_overwrite, sync_dir_hybrid,
     sync_dir_with_mode_with_overwrite, SyncMode,
@@ -61,6 +64,8 @@ fn format_anyhow_error(err: anyhow::Error) -> String {
     if first.starts_with("MULTI_SKILLS|")
         || first.starts_with("TARGET_EXISTS|")
         || first.starts_with("TOOL_NOT_INSTALLED|")
+        || first.starts_with("MIGRATION_CONFLICT|")
+        || first.starts_with("MIGRATION_VERIFY_FAILED|")
     {
         return first;
     }
@@ -122,6 +127,34 @@ fn format_anyhow_error(err: anyhow::Error) -> String {
     }
 
     full
+}
+
+#[tauri::command]
+pub async fn get_storage_migration_status(
+    store: State<'_, SkillStore>,
+) -> Result<StorageMigrationStatus, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("failed to resolve home directory")?;
+        migration_status(&home, &store)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub async fn migrate_legacy_storage_cmd(
+    store: State<'_, SkillStore>,
+) -> Result<StorageMigrationStatus, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("failed to resolve home directory")?;
+        migrate_legacy_storage(&home, &store)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
 }
 
 #[derive(Debug, Serialize)]

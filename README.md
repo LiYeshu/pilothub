@@ -16,7 +16,7 @@ Use it in Claude Code and Codex
 
 ## Project status
 
-PilotHub currently uses the verified Skills Hub v0.8.0 codebase. The repository has completed its upstream baseline and product rebrand. Storage migration remains deferred to PR-003.
+PilotHub currently uses the verified Skills Hub v0.8.0 codebase. The repository has completed its upstream baseline and product rebrand. The storage migration is implemented in PR-003.
 
 Current implementation:
 
@@ -111,6 +111,19 @@ upstream   qufei1993/skills-hub
 ```
 
 See [UPSTREAM.md](UPSTREAM.md) for the upstream sync policy and [docs/BASELINE.md](docs/BASELINE.md) for the verified starting point.
+
+## Local storage
+
+```text
+~/.pilothub
+├── extensions
+├── cache
+├── logs
+├── config
+└── backups
+```
+
+When PilotHub finds legacy data under `~/.skillshub`, it asks before migrating. It copies and verifies the data, updates database paths in one transaction, keeps a backup, and does not delete the legacy directory.
 
 ## Development
 

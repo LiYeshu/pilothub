@@ -5,8 +5,7 @@ use dirs::home_dir;
 use tauri::Manager;
 
 use super::skill_store::SkillStore;
-
-const CENTRAL_DIR_NAME: &str = ".skillshub";
+use super::storage_migration::StorageLayout;
 
 pub fn resolve_central_repo_path<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
@@ -17,14 +16,14 @@ pub fn resolve_central_repo_path<R: tauri::Runtime>(
     }
 
     if let Some(home) = home_dir() {
-        return Ok(home.join(CENTRAL_DIR_NAME));
+        return Ok(StorageLayout::from_home(&home).extensions);
     }
 
     let base = app
         .path()
         .app_data_dir()
         .context("failed to resolve app data dir")?;
-    Ok(base.join(CENTRAL_DIR_NAME))
+    Ok(base.join("extensions"))
 }
 
 pub fn ensure_central_repo(path: &Path) -> Result<()> {
