@@ -72,6 +72,16 @@ export const resources = {
       settingsSectionNetworkDesc: 'Token and proxy settings for app network requests.',
       settingsSectionUpdates: 'App updates',
       settingsSectionUpdatesDesc: 'View the installed app version and release-channel status.',
+      settingsSectionPackageManagers: 'Package managers',
+      settingsSectionPackageManagersDesc:
+        'View external package managers available to PilotHub.',
+      packageManagers: {
+        detecting: 'Detecting package managers...',
+        none: 'No package manager status is available.',
+        available: 'Available',
+        unavailable: 'Not detected',
+        versionUnknown: 'Version unknown',
+      },
       appVersion: 'App version',
       projectLink: {
         title: 'Open-source project',
@@ -763,6 +773,15 @@ export const resources = {
       settingsSectionNetworkDesc: '配置 GitHub Token 和应用联网代理。',
       settingsSectionUpdates: '应用更新',
       settingsSectionUpdatesDesc: '查看已安装版本和发布通道状态。',
+      settingsSectionPackageManagers: '包管理器',
+      settingsSectionPackageManagersDesc: '查看 PilotHub 可用的外部包管理器。',
+      packageManagers: {
+        detecting: '正在检测包管理器...',
+        none: '暂无包管理器状态。',
+        available: '可用',
+        unavailable: '未检测到',
+        versionUnknown: '版本未知',
+      },
       appVersion: '应用版本',
       projectLink: {
         title: '开源项目',
