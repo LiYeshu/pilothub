@@ -11,6 +11,8 @@ pub mod github_search;
 pub mod installer;
 pub mod network_proxy;
 pub mod onboarding;
+#[allow(dead_code)]
+pub mod package_managers;
 pub mod skill_files;
 pub mod skill_store;
 pub mod skills_search;

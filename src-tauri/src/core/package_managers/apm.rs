@@ -1,0 +1,231 @@
+use std::process::Command;
+
+use anyhow::{bail, Result};
+
+use super::{
+    PackageManager, PackageManagerAvailability, PackageManagerCommand, PackageManagerContext,
+    PackageManagerScope,
+};
+
+const APM_ID: &str = "apm";
+
+#[derive(Debug, Clone)]
+pub struct ApmAdapter {
+    binary: String,
+}
+
+impl Default for ApmAdapter {
+    fn default() -> Self {
+        Self::new("apm")
+    }
+}
+
+impl ApmAdapter {
+    pub fn new(binary: impl Into<String>) -> Self {
+        Self {
+            binary: binary.into(),
+        }
+    }
+
+    fn command(&self, args: Vec<String>, context: &PackageManagerContext) -> PackageManagerCommand {
+        PackageManagerCommand {
+            program: self.binary.clone(),
+            args,
+            working_dir: context.working_dir.clone(),
+        }
+    }
+}
+
+impl PackageManager for ApmAdapter {
+    fn id(&self) -> &'static str {
+        APM_ID
+    }
+
+    fn availability(&self) -> PackageManagerAvailability {
+        match Command::new(&self.binary).arg("--version").output() {
+            Ok(output) if output.status.success() => PackageManagerAvailability {
+                available: true,
+                version: non_empty_output(&output.stdout),
+                message: None,
+            },
+            Ok(output) => PackageManagerAvailability {
+                available: false,
+                version: None,
+                message: non_empty_output(&output.stderr)
+                    .or_else(|| Some(format!("APM exited with status {}", output.status))),
+            },
+            Err(error) => PackageManagerAvailability {
+                available: false,
+                version: None,
+                message: Some(error.to_string()),
+            },
+        }
+    }
+
+    fn install(
+        &self,
+        package: &str,
+        context: &PackageManagerContext,
+    ) -> Result<PackageManagerCommand> {
+        validate_package(package)?;
+        let mut args = vec!["install".to_string(), package.to_string()];
+        append_scope(&mut args, context);
+        if !context.targets.is_empty() {
+            args.push("--target".to_string());
+            args.push(context.targets.join(","));
+        }
+        Ok(self.command(args, context))
+    }
+
+    fn uninstall(
+        &self,
+        package: &str,
+        context: &PackageManagerContext,
+    ) -> Result<PackageManagerCommand> {
+        validate_package(package)?;
+        let mut args = vec!["uninstall".to_string(), package.to_string()];
+        append_scope(&mut args, context);
+        Ok(self.command(args, context))
+    }
+
+    fn update(
+        &self,
+        package: Option<&str>,
+        accept_changes: bool,
+        context: &PackageManagerContext,
+    ) -> Result<PackageManagerCommand> {
+        if let Some(package) = package {
+            validate_package(package)?;
+        }
+        let mut args = vec!["update".to_string()];
+        if let Some(package) = package {
+            args.push(package.to_string());
+        }
+        if accept_changes {
+            args.push("--yes".to_string());
+        }
+        append_scope(&mut args, context);
+        if !context.targets.is_empty() {
+            args.push("--target".to_string());
+            args.push(context.targets.join(","));
+        }
+        Ok(self.command(args, context))
+    }
+
+    fn list(&self, context: &PackageManagerContext) -> Result<PackageManagerCommand> {
+        let mut args = vec!["list".to_string()];
+        append_scope(&mut args, context);
+        Ok(self.command(args, context))
+    }
+
+    fn doctor(&self, context: &PackageManagerContext) -> Result<PackageManagerCommand> {
+        Ok(self.command(vec!["doctor".to_string()], context))
+    }
+}
+
+fn validate_package(package: &str) -> Result<()> {
+    if package.trim().is_empty() {
+        bail!("package reference cannot be empty");
+    }
+    Ok(())
+}
+
+fn append_scope(args: &mut Vec<String>, context: &PackageManagerContext) {
+    if context.scope == PackageManagerScope::Global {
+        args.push("--global".to_string());
+    }
+}
+
+fn non_empty_output(bytes: &[u8]) -> Option<String> {
+    let output = String::from_utf8_lossy(bytes).trim().to_string();
+    (!output.is_empty()).then_some(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn context(scope: PackageManagerScope) -> PackageManagerContext {
+        PackageManagerContext {
+            working_dir: PathBuf::from("/tmp/project"),
+            scope,
+            targets: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn install_builds_project_command_with_targets() {
+        let adapter = ApmAdapter::default();
+        let mut context = context(PackageManagerScope::Project);
+        context.targets = vec!["codex".to_string(), "claude".to_string()];
+
+        let command = adapter
+            .install("microsoft/apm-sample-package", &context)
+            .unwrap();
+
+        assert_eq!(command.program, "apm");
+        assert_eq!(
+            command.args,
+            [
+                "install",
+                "microsoft/apm-sample-package",
+                "--target",
+                "codex,claude"
+            ]
+        );
+        assert_eq!(command.working_dir, PathBuf::from("/tmp/project"));
+    }
+
+    #[test]
+    fn global_commands_include_global_flag() {
+        let adapter = ApmAdapter::default();
+        let context = context(PackageManagerScope::Global);
+
+        assert_eq!(
+            adapter
+                .uninstall("microsoft/apm-sample-package", &context)
+                .unwrap()
+                .args,
+            ["uninstall", "microsoft/apm-sample-package", "--global"]
+        );
+        assert_eq!(adapter.list(&context).unwrap().args, ["list", "--global"]);
+    }
+
+    #[test]
+    fn update_requires_explicit_consent_flag() {
+        let adapter = ApmAdapter::default();
+        let context = context(PackageManagerScope::Project);
+
+        assert_eq!(
+            adapter.update(None, false, &context).unwrap().args,
+            ["update"]
+        );
+        assert_eq!(
+            adapter
+                .update(Some("microsoft/apm"), true, &context)
+                .unwrap()
+                .args,
+            ["update", "microsoft/apm", "--yes"]
+        );
+    }
+
+    #[test]
+    fn empty_package_reference_is_rejected() {
+        let adapter = ApmAdapter::default();
+        let error = adapter
+            .install("  ", &context(PackageManagerScope::Project))
+            .unwrap_err();
+        assert!(error.to_string().contains("cannot be empty"));
+    }
+
+    #[test]
+    fn unavailable_binary_is_reported_without_running_an_operation() {
+        let adapter = ApmAdapter::new("pilothub-missing-apm-test-binary");
+        let availability = adapter.availability();
+        assert!(!availability.available);
+        assert!(availability.version.is_none());
+        assert!(availability.message.is_some());
+    }
+}
