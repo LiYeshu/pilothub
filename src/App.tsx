@@ -59,6 +59,7 @@ import type {
   ManagedSkill,
   OnboardingPlan,
   OnlineSkillDto,
+  SkillCollection,
   StorageMigrationStatusDto,
   TagWithCountDto,
   ToolConfigDto,
@@ -114,6 +115,7 @@ function App() {
   const [gitName, setGitName] = useState('')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [gitCandidates, setGitCandidates] = useState<GitSkillCandidate[]>([])
+  const [gitCollection, setGitCollection] = useState<SkillCollection | null>(null)
   const [gitCandidatesRepoUrl, setGitCandidatesRepoUrl] = useState<string>('')
   const [showGitPickModal, setShowGitPickModal] = useState(false)
   const [gitCandidateSelected, setGitCandidateSelected] = useState<
@@ -688,6 +690,13 @@ function App() {
   const installedTools = useMemo(
     () => tools.filter((tool) => installedToolIds.includes(tool.id)),
     [tools, installedToolIds],
+  )
+  const installPreviewTargets = useMemo(
+    () =>
+      installedTools
+        .filter((tool) => syncTargets[tool.id])
+        .map((tool) => tool.label),
+    [installedTools, syncTargets],
   )
   const toolSupportsProjectScope = useCallback(
     (toolId: string) =>
@@ -1398,6 +1407,7 @@ function App() {
     if (loading) return
     setShowGitPickModal(false)
     setGitCandidates([])
+    setGitCollection(null)
     setGitCandidateSelected({})
     setGitCandidatesRepoUrl('')
     setShowAddModal(true)
@@ -2471,15 +2481,17 @@ function App() {
       const isFolderUrl = url.includes('/tree/') || url.includes('/blob/')
 
       if (isFolderUrl) {
-        const candidates = await invokeTauri<GitSkillCandidate[]>(
+        const collection = await invokeTauri<SkillCollection>(
           'list_git_skills_cmd',
           { repoUrl: url },
         )
+        const candidates = collection.skills
         if (candidates.length === 0) {
           throw new Error(t('errors.noSkillsFoundWithHint'))
         }
         if (candidates.length > 1) {
           setGitCandidatesRepoUrl(url)
+          setGitCollection(collection)
           setGitCandidates(candidates)
           setGitCandidateSelected(
             Object.fromEntries(candidates.map((c) => [c.subpath, true])),
@@ -2506,10 +2518,11 @@ function App() {
         const syncErrors = await syncInstalledSkill(created)
         if (syncErrors.length > 0) showActionErrors(syncErrors)
       } else {
-        const candidates = await invokeTauri<GitSkillCandidate[]>(
+        const collection = await invokeTauri<SkillCollection>(
           'list_git_skills_cmd',
           { repoUrl: url },
         )
+        const candidates = collection.skills
         if (candidates.length === 0) {
           throw new Error(t('errors.noSkillsFoundWithHint'))
         }
@@ -2561,6 +2574,7 @@ function App() {
           } else {
             // No match found, fall back to picker
             setGitCandidatesRepoUrl(url)
+            setGitCollection(collection)
             setGitCandidates(candidates)
             setGitCandidateSelected(
               Object.fromEntries(candidates.map((c) => [c.subpath, true])),
@@ -2573,6 +2587,7 @@ function App() {
           }
         } else {
           setGitCandidatesRepoUrl(url)
+          setGitCollection(collection)
           setGitCandidates(candidates)
           setGitCandidateSelected(
             Object.fromEntries(candidates.map((c) => [c.subpath, true])),
@@ -2776,6 +2791,7 @@ function App() {
 
       setShowGitPickModal(false)
       setGitCandidates([])
+      setGitCollection(null)
       setGitCandidateSelected({})
       setGitCandidatesRepoUrl('')
       setGitUrl('')
@@ -2785,6 +2801,7 @@ function App() {
       setActionMessage(null)
       setShowGitPickModal(false)
       setGitCandidates([])
+      setGitCollection(null)
       setGitCandidateSelected({})
       setGitCandidatesRepoUrl('')
       resetInstallScope()
@@ -3799,8 +3816,11 @@ function App() {
         <GitPickModal
           open={showGitPickModal}
           loading={loading}
+          collection={gitCollection}
           gitCandidates={gitCandidates}
           gitCandidateSelected={gitCandidateSelected}
+          installScope={installScope}
+          targetLabels={installPreviewTargets}
           onRequestClose={handleCloseGitPick}
           onCancel={handleCancelGitPick}
           onToggleCandidate={handleToggleGitCandidate}

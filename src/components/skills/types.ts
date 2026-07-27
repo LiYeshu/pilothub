@@ -77,6 +77,16 @@ export type GitSkillCandidate = {
   name: string
   description?: string | null
   subpath: string
+  contents: string[]
+}
+
+export type SkillCollection = {
+  id: string
+  name: string
+  source_url: string
+  author?: string | null
+  license?: string | null
+  skills: GitSkillCandidate[]
 }
 
 export type LocalSkillCandidate = {
