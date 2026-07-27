@@ -35,6 +35,8 @@ use crate::core::network_proxy::{
     set_github_proxy_url as set_github_proxy_url_core, GithubProxyConfig,
 };
 use crate::core::onboarding::{build_onboarding_plan, OnboardingPlan};
+use crate::core::package_managers::apm::ApmAdapter;
+use crate::core::package_managers::PackageManager;
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::skills_search::{
     search_skills_online as search_skills_online_core, OnlineSkillResult,
@@ -177,6 +179,14 @@ pub struct ToolStatusDto {
     pub tools: Vec<ToolInfoDto>,
     pub installed: Vec<String>,
     pub newly_installed: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PackageManagerStatusDto {
+    pub id: String,
+    pub label: String,
+    pub available: bool,
+    pub version: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -417,6 +427,22 @@ pub async fn get_tool_status(store: State<'_, SkillStore>) -> Result<ToolStatusD
     .await
     .map_err(|err| err.to_string())?
     .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub async fn get_package_manager_status() -> Result<Vec<PackageManagerStatusDto>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let adapter = ApmAdapter::default();
+        let availability = adapter.availability();
+        vec![PackageManagerStatusDto {
+            id: adapter.id().to_string(),
+            label: "Microsoft APM".to_string(),
+            available: availability.available,
+            version: availability.version,
+        }]
+    })
+    .await
+    .map_err(|err| err.to_string())
 }
 
 #[tauri::command]

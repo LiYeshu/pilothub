@@ -1,9 +1,17 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Database, ExternalLink, Github, Palette, RefreshCw } from 'lucide-react'
+import {
+  ArrowLeft,
+  Boxes,
+  Database,
+  ExternalLink,
+  Github,
+  Palette,
+  RefreshCw,
+} from 'lucide-react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
-import type { GithubProxyConfigDto } from './types'
+import type { GithubProxyConfigDto, PackageManagerStatusDto } from './types'
 
 const PROJECT_REPOSITORY_URL = 'https://github.com/LiYeshu/pilothub'
 
@@ -16,6 +24,7 @@ type SettingsPageProps = {
   themePreference: 'system' | 'light' | 'dark'
   githubToken: string
   githubProxyConfig: GithubProxyConfigDto
+  invokeTauri: <T>(command: string, args?: Record<string, unknown>) => Promise<T>
   onPickStoragePath: () => void
   onToggleLanguage: () => void
   onThemeChange: (nextTheme: 'system' | 'light' | 'dark') => void
@@ -35,6 +44,7 @@ const SettingsPage = ({
   gitCacheCleanupDays,
   gitCacheTtlSecs,
   themePreference,
+  invokeTauri,
   onPickStoragePath,
   onToggleLanguage,
   onThemeChange,
@@ -60,6 +70,8 @@ const SettingsPage = ({
   }, [githubProxyConfig.port])
 
   const [appVersion, setAppVersion] = useState<string | null>(null)
+  const [packageManagers, setPackageManagers] = useState<PackageManagerStatusDto[]>([])
+  const [packageManagersLoading, setPackageManagersLoading] = useState(false)
   const versionText = useMemo(() => {
     if (!isTauri) return t('notAvailable')
     if (!appVersion) return t('unknown')
@@ -83,6 +95,18 @@ const SettingsPage = ({
   useEffect(() => {
     void loadAppVersion()
   }, [loadAppVersion])
+
+  useEffect(() => {
+    if (!isTauri) {
+      setPackageManagers([])
+      return
+    }
+    setPackageManagersLoading(true)
+    void invokeTauri<PackageManagerStatusDto[]>('get_package_manager_status')
+      .then(setPackageManagers)
+      .catch(() => setPackageManagers([]))
+      .finally(() => setPackageManagersLoading(false))
+  }, [invokeTauri, isTauri])
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -424,7 +448,42 @@ const SettingsPage = ({
                   <span className="settings-version-text">{versionText}</span>
                 </div>
               </div>
-              <div className="settings-helper">{t('updaterDisabled')}</div>
+            <div className="settings-helper">{t('updaterDisabled')}</div>
+            </div>
+            </section>
+
+            <section className="settings-card">
+            <div className="settings-card-head">
+              <span className="settings-card-icon">
+                <Boxes size={18} />
+              </span>
+              <div>
+                <h2>{t('settingsSectionPackageManagers')}</h2>
+                <p>{t('settingsSectionPackageManagersDesc')}</p>
+              </div>
+            </div>
+            <div className="settings-card-body">
+              {packageManagersLoading ? (
+                <div className="settings-helper">{t('packageManagers.detecting')}</div>
+              ) : packageManagers.length === 0 ? (
+                <div className="settings-helper">{t('packageManagers.none')}</div>
+              ) : (
+                packageManagers.map((manager) => (
+                  <div className="settings-project-row" key={manager.id}>
+                    <div className="settings-item-info">
+                      <div className="settings-item-title">{manager.label}</div>
+                      <div className="settings-item-desc mono">
+                        {manager.version ?? t('packageManagers.versionUnknown')}
+                      </div>
+                    </div>
+                    <span className={`badge${manager.available ? '' : ' danger'}`}>
+                      {manager.available
+                        ? t('packageManagers.available')
+                        : t('packageManagers.unavailable')}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
             </section>
           </div>

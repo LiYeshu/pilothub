@@ -143,6 +143,13 @@ export type ToolStatusDto = {
   newly_installed: string[]
 }
 
+export type PackageManagerStatusDto = {
+  id: string
+  label: string
+  available: boolean
+  version?: string | null
+}
+
 export type CustomToolConfigDto = {
   key: string
   label: string

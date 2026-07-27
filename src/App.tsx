@@ -3572,6 +3572,7 @@ function App() {
         ) : activeView === 'settings' ? (
           <SettingsPage
             isTauri={isTauri}
+            invokeTauri={invokeTauri}
             language={language}
             storagePath={storagePath}
             gitCacheCleanupDays={gitCacheCleanupDays}
