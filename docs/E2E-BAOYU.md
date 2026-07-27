@@ -17,7 +17,7 @@ The verification used PilotHub's existing core modules:
 1. `list_git_skills` cloned and scanned the multi-Skill repository.
 2. The scan returned the `baoyu-cover-image` candidate at the expected subpath.
 3. `install_git_skill_from_selection` installed only that candidate.
-4. `sync_dir_for_tool_with_overwrite` synchronized it to the Claude Code and Codex adapters without overwrite.
+4. `sync_dir_for_tool_with_overwrite` synchronized it to the Antigravity and Codex adapters without overwrite.
 5. `SkillStore` persisted the installed Skill and both global targets.
 
 ## Verified state
@@ -25,9 +25,9 @@ The verification used PilotHub's existing core modules:
 | Check | Result |
 | --- | --- |
 | PilotHub source | `~/.pilothub/extensions/baoyu-cover-image` |
-| Claude Code target | `~/.claude/skills/baoyu-cover-image` |
+| Antigravity target | `~/.gemini/config/skills/baoyu-cover-image` |
 | Codex target | `$CODEX_HOME/skills/baoyu-cover-image` |
-| Claude Code sync mode | Symlink |
+| Antigravity sync mode | Symlink |
 | Codex sync mode | Symlink |
 | Both links point to the PilotHub source | PASS |
 | `SKILL.md` readable through all three paths | PASS |
@@ -42,7 +42,7 @@ The Codex adapter now honors `CODEX_HOME`. When the variable is unavailable, it 
 
 ## Repeatable test
 
-The ignored Rust test `installs_baoyu_cover_image_for_claude_and_codex` exercises the real user directories. It refuses to run unless the operator explicitly sets:
+The ignored Rust test `installs_baoyu_cover_image_for_antigravity_and_codex` exercises the real user directories. It refuses to run unless the operator explicitly sets:
 
 ```bash
 PILOTHUB_E2E_REAL_HOME=1
@@ -50,6 +50,6 @@ PILOTHUB_E2E_REAL_HOME=1
 
 The test installs the Skill when absent. On repeat runs, it verifies the existing central Skill and targets, then creates only missing Agent links.
 
-## Remaining Claude Code check
+## Runtime coverage
 
-Codex filesystem discovery and fresh-process loading are verified. This machine did not expose a standalone `claude` CLI executable, so fresh-process Claude Code discovery remains a manual acceptance step. Image generation is intentionally outside this installation test.
+Codex filesystem discovery and fresh-process loading are verified. Antigravity filesystem discovery is verified at its configured global Skill directory. Its CLI manages the IDE but does not expose a headless Agent prompt command, so conversational invocation remains an IDE acceptance step. Image generation is intentionally outside this installation test.

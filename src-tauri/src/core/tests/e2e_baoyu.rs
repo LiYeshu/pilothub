@@ -10,8 +10,8 @@ const SKILL_NAME: &str = "baoyu-cover-image";
 const SKILL_SUBPATH: &str = "skills/baoyu-cover-image";
 
 #[test]
-#[ignore = "writes to the real PilotHub, Claude Code, and Codex user directories"]
-fn installs_baoyu_cover_image_for_claude_and_codex() {
+#[ignore = "writes to the real PilotHub, Antigravity, and Codex user directories"]
+fn installs_baoyu_cover_image_for_antigravity_and_codex() {
     assert_eq!(
         std::env::var("PILOTHUB_E2E_REAL_HOME").as_deref(),
         Ok("1"),
@@ -30,7 +30,7 @@ fn installs_baoyu_cover_image_for_claude_and_codex() {
         )
         .expect("set PilotHub central repository");
 
-    let targets = ["claude_code", "codex"]
+    let targets = ["antigravity", "codex"]
         .into_iter()
         .map(|tool| {
             let adapter = adapter_by_key(tool).expect("known Agent adapter");
