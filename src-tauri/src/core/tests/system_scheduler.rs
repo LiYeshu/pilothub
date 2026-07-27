@@ -39,8 +39,7 @@ fn daily_schedule(time: &str) -> AutoUpdateSchedule {
 #[test]
 fn mac_launch_agent_uses_current_user_interval_and_background_arg() {
     let plist = build_launch_agent_plist(&SchedulerConfig {
-        executable: Path::new("/Applications/Skills Hub.app/Contents/MacOS/Skills Hub")
-            .to_path_buf(),
+        executable: Path::new("/Applications/PilotHub.app/Contents/MacOS/PilotHub").to_path_buf(),
         schedule: hourly_schedule(24),
     });
 
@@ -54,8 +53,7 @@ fn mac_launch_agent_uses_current_user_interval_and_background_arg() {
 #[test]
 fn mac_launch_agent_supports_daily_time() {
     let plist = build_launch_agent_plist(&SchedulerConfig {
-        executable: Path::new("/Applications/Skills Hub.app/Contents/MacOS/Skills Hub")
-            .to_path_buf(),
+        executable: Path::new("/Applications/PilotHub.app/Contents/MacOS/PilotHub").to_path_buf(),
         schedule: daily_schedule("03:30"),
     });
 
@@ -78,7 +76,7 @@ fn debug_scheduler_uses_stable_runner_copy_for_target_debug_binary() {
     let executable = scheduler_executable_for_current_exe(&app).unwrap();
 
     if cfg!(debug_assertions) {
-        assert_eq!(executable, debug_dir.join("skills-hub-autoupdate-runner"));
+        assert_eq!(executable, debug_dir.join("pilothub-autoupdate-runner"));
         assert_eq!(std::fs::read(&executable).unwrap(), b"runner");
     } else {
         assert_eq!(executable, app);
@@ -91,7 +89,7 @@ fn mac_kickstart_targets_user_launch_agent() {
 
     assert_eq!(
         args,
-        vec!["kickstart", "-k", "gui/501/com.skillshub.autoupdate"]
+        vec!["kickstart", "-k", "gui/501/com.pilothub.autoupdate"]
     );
 }
 
@@ -148,22 +146,20 @@ fn windows_task_supports_minutes_and_daily_time() {
 fn windows_run_args_start_registered_task() {
     let args = windows_schtasks_run_args();
 
-    assert_eq!(args, vec!["/Run", "/TN", "com.skillshub.autoupdate"]);
+    assert_eq!(args, vec!["/Run", "/TN", "com.pilothub.autoupdate"]);
 }
 
 #[test]
 fn linux_systemd_unit_uses_user_timer_interval() {
     let config = SchedulerConfig {
-        executable: Path::new("/usr/bin/skills-hub").to_path_buf(),
+        executable: Path::new("/usr/bin/pilothub").to_path_buf(),
         schedule: hourly_schedule(48),
     };
 
     let service = build_systemd_service(&config);
     let timer = build_systemd_timer(&config);
 
-    assert!(
-        service.contains("ExecStart=/usr/bin/skills-hub --background-task update-skills --force")
-    );
+    assert!(service.contains("ExecStart=/usr/bin/pilothub --background-task update-skills --force"));
     assert!(timer.contains("OnBootSec=5min"));
     assert!(timer.contains("OnUnitActiveSec=2880min"));
     assert!(timer.contains("WantedBy=timers.target"));
@@ -172,13 +168,13 @@ fn linux_systemd_unit_uses_user_timer_interval() {
 #[test]
 fn linux_systemd_timer_supports_minutes_and_daily_time() {
     let minute_timer = build_systemd_timer(&SchedulerConfig {
-        executable: Path::new("/usr/bin/skills-hub").to_path_buf(),
+        executable: Path::new("/usr/bin/pilothub").to_path_buf(),
         schedule: minute_schedule(45),
     });
     assert!(minute_timer.contains("OnUnitActiveSec=45min"));
 
     let daily_timer = build_systemd_timer(&SchedulerConfig {
-        executable: Path::new("/usr/bin/skills-hub").to_path_buf(),
+        executable: Path::new("/usr/bin/pilothub").to_path_buf(),
         schedule: daily_schedule("04:15"),
     });
     assert!(daily_timer.contains("OnCalendar=*-*-* 04:15:00"));
@@ -190,6 +186,6 @@ fn linux_start_args_start_service_for_immediate_test() {
 
     assert_eq!(
         args,
-        vec!["--user", "start", "com.skillshub.autoupdate.service"]
+        vec!["--user", "start", "com.pilothub.autoupdate.service"]
     );
 }

@@ -4,16 +4,12 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
   type SetStateAction,
 } from 'react'
-import type { DownloadOptions, Update } from '@tauri-apps/plugin-updater'
 import './App.css'
 import './figma.css'
 import { useTranslation } from 'react-i18next'
 import { Toaster, toast } from 'sonner'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import ExplorePage from './components/skills/ExplorePage'
 import FilterBar from './components/skills/FilterBar'
 import SkillDetailView from './components/skills/SkillDetailView'
@@ -79,17 +75,6 @@ type SkillScopeState = Record<
 
 type ActiveView = 'myskills' | 'explore' | 'detail' | 'settings' | 'manage'
 type ManagementTab = 'tags' | 'tools' | 'updates'
-type UpdaterProxyOptions = { proxy?: string }
-type UpdaterDownloadOptions = DownloadOptions & UpdaterProxyOptions
-
-const buildUpdaterProxyOptions = (
-  enabled: boolean,
-  url: string,
-): UpdaterProxyOptions | undefined => {
-  const proxy = enabled ? url.trim() : ''
-  return proxy ? { proxy } : undefined
-}
-
 function App() {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language ?? 'en'
@@ -149,13 +134,6 @@ function App() {
     toolId: string
     affectedToolIds?: string[]
   } | null>(null)
-  const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null)
-  const [updateBody, setUpdateBody] = useState<string | null>(null)
-  const [updateChecking, setUpdateChecking] = useState(false)
-  const [updateInstalling, setUpdateInstalling] = useState(false)
-  const [updateDone, setUpdateDone] = useState(false)
-  const [showAppUpdateModal, setShowAppUpdateModal] = useState(false)
-  const updateObjRef = useRef<Update | null>(null) as MutableRefObject<Update | null>
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'updated' | 'name'>('updated')
   const [scopeFilter, setScopeFilter] = useState<'all' | 'global' | 'project'>('all')
@@ -535,7 +513,6 @@ function App() {
       .catch((err) => {
         setError(err instanceof Error ? err.message : String(err))
       })
-      .finally(() => setGithubProxyConfigLoaded(true))
   }, [isTauri, invokeTauri])
 
   useEffect(() => {
@@ -561,24 +538,6 @@ function App() {
       void loadPlan(false)
     }
   }, [isTauri, loadPlan])
-
-  const handleDismissUpdate = useCallback(() => {
-    setShowAppUpdateModal(false)
-  }, [])
-
-  const handleOpenUpdate = useCallback(() => {
-    if (updateAvailableVersion) setShowAppUpdateModal(true)
-  }, [updateAvailableVersion])
-
-  const handleDismissUpdateForever = useCallback(() => {
-    if (updateAvailableVersion) {
-      localStorage.setItem('skills-ignored-update-version', updateAvailableVersion)
-    }
-    updateObjRef.current = null
-    setShowAppUpdateModal(false)
-    setUpdateAvailableVersion(null)
-    setUpdateBody(null)
-  }, [updateAvailableVersion])
 
   useEffect(() => {
     if (!successToastMessage) return
@@ -902,67 +861,10 @@ function App() {
       url: '',
       auto_detected: false,
     })
-  const [githubProxyConfigLoaded, setGithubProxyConfigLoaded] = useState(false)
   const [autoUpdateConfig, setAutoUpdateConfig] =
     useState<AutoUpdateConfigDto | null>(null)
   const [autoUpdateTriggering, setAutoUpdateTriggering] = useState(false)
   const autoUpdateLastRunRef = useRef<number | null>(null)
-  const updaterProxyOptions = useMemo(
-    () => buildUpdaterProxyOptions(githubProxyConfig.enabled, githubProxyConfig.url),
-    [githubProxyConfig.enabled, githubProxyConfig.url],
-  )
-
-  useEffect(() => {
-    if (!isTauri || !githubProxyConfigLoaded) return
-    let cancelled = false
-    const ignoredVersion = localStorage.getItem('skills-ignored-update-version')
-    setUpdateChecking(true)
-    void import('@tauri-apps/plugin-updater')
-      .then(({ check }) => check(updaterProxyOptions))
-      .then(async (update) => {
-        if (cancelled) return
-        if (update && update.version !== ignoredVersion) {
-          updateObjRef.current = update
-          setUpdateAvailableVersion(update.version)
-          setUpdateDone(false)
-          try {
-            const body = await invokeTauri<string | null>('get_github_release_notes', {
-              version: update.version,
-            })
-            if (cancelled) return
-            setUpdateBody(body ?? update.body ?? null)
-          } catch {
-            if (cancelled) return
-            setUpdateBody(update.body ?? null)
-          }
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setUpdateChecking(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [githubProxyConfigLoaded, invokeTauri, isTauri, updaterProxyOptions])
-
-  const handleUpdateNow = useCallback(async () => {
-    const update = updateObjRef.current
-    if (!update) return
-    setUpdateInstalling(true)
-    try {
-      await update.downloadAndInstall(
-        undefined,
-        updaterProxyOptions as UpdaterDownloadOptions | undefined,
-      )
-      setUpdateInstalling(false)
-      setUpdateDone(true)
-    } catch (err) {
-      setUpdateInstalling(false)
-      toast.error(err instanceof Error ? err.message : String(err), { duration: 3200 })
-    }
-  }, [updaterProxyOptions])
-
   useEffect(() => {
     if (!isTauri) return
     if (activeView !== 'manage' || managementTab !== 'updates') return
@@ -3390,14 +3292,9 @@ function App() {
         toolCount={toolStatus?.tools.length ?? 0}
         updateCount={pendingUpdateCount}
         appVersion={appVersion}
-        updateAvailableVersion={updateAvailableVersion}
-        updateChecking={updateChecking}
-        updateInstalling={updateInstalling}
-        updateDone={updateDone}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
         onOpenSettings={handleOpenSettings}
-        onOpenUpdate={handleOpenUpdate}
         onViewChange={handleViewChange}
         onManagementTabChange={handleManagementTabChange}
         t={t}
@@ -3867,73 +3764,6 @@ function App() {
         />
       ) : null}
 
-      {showAppUpdateModal && updateAvailableVersion && (
-        <div className="modal-backdrop" onClick={updateInstalling ? undefined : handleDismissUpdate}>
-          <div
-            className="modal update-modal"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {!updateInstalling && !updateDone && (
-              <button
-                className="modal-close update-modal-close"
-                type="button"
-                onClick={handleDismissUpdate}
-                aria-label={t('close')}
-              >
-                ✕
-              </button>
-            )}
-            <div className="update-modal-body">
-              <div className="update-modal-title">
-                {updateDone ? t('updateInstalledRestart') : t('updateAvailable')}
-              </div>
-              {!updateDone && (
-                <div className="update-modal-text">
-                  {t('updateBannerText', { version: updateAvailableVersion })}
-                </div>
-              )}
-              {!updateDone && updateBody && (
-                <div className="update-modal-notes">
-                  <Markdown remarkPlugins={[remarkGfm]}>{updateBody}</Markdown>
-                </div>
-              )}
-            </div>
-            <div className="update-modal-actions">
-              {updateDone ? (
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  onClick={handleDismissUpdate}
-                >
-                  {t('done')}
-                </button>
-              ) : (
-                <>
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    disabled={updateInstalling}
-                    onClick={handleUpdateNow}
-                  >
-                    {updateInstalling ? t('installingUpdate') : t('updateNow')}
-                  </button>
-                  {!updateInstalling && (
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={handleDismissUpdateForever}
-                    >
-                      {t('updateBannerDismiss')}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       </div>
   )
 }

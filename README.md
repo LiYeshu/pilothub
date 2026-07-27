@@ -16,7 +16,7 @@ Use it in Claude Code and Codex
 
 ## Project status
 
-PilotHub currently uses the verified Skills Hub v0.8.0 codebase. The repository has completed its upstream baseline and has not started the product rebrand or storage migration.
+PilotHub currently uses the verified Skills Hub v0.8.0 codebase. The repository has completed its upstream baseline and product rebrand. Storage migration remains deferred to PR-003.
 
 Current implementation:
 

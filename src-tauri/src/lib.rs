@@ -21,7 +21,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
@@ -141,7 +140,6 @@ pub fn run() {
             commands::set_skill_enabled,
             commands::update_managed_skill,
             commands::search_github,
-            commands::get_github_release_notes,
             commands::get_github_token,
             commands::set_github_token,
             commands::get_github_proxy_config,

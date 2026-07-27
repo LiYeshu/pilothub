@@ -1,7 +1,7 @@
 export const resources = {
   en: {
     translation: {
-      appName: 'Skills Hub',
+      appName: 'PilotHub',
       unknown: 'unknown',
       languageShort: {
         en: 'EN',
@@ -50,7 +50,7 @@ export const resources = {
       moreTools: '+{{count}} more',
       installSuccess: '"{{name}}" installed and synced to {{count}} tools',
       settings: 'Settings',
-      settingsPageSubtitle: 'Configure appearance, storage, GitHub access, and updates.',
+      settingsPageSubtitle: 'Configure appearance, storage, and GitHub access.',
       settingsSummary: 'Settings summary',
       settingsSectionAppearance: 'Appearance',
       settingsSectionAppearanceDesc: 'Language and theme for this app.',
@@ -59,13 +59,13 @@ export const resources = {
       settingsSectionNetwork: 'GitHub & network',
       settingsSectionNetworkDesc: 'Token and proxy settings for app network requests.',
       settingsSectionUpdates: 'App updates',
-      settingsSectionUpdatesDesc: 'Check the current version and install updates.',
+      settingsSectionUpdatesDesc: 'View the installed app version and release-channel status.',
       appVersion: 'App version',
       projectLink: {
         title: 'Open-source project',
         description: 'View the source code, releases, and issue tracker.',
         view: 'View on GitHub',
-        open: 'Open Skills Hub on GitHub',
+        open: 'Open PilotHub on GitHub',
         openFailed: 'Failed to open the project page',
       },
       titlebarUpdate: {
@@ -165,7 +165,7 @@ export const resources = {
         enableFailedTitle: 'Failed to enable {{name}}',
         disableFailedTitle: 'Failed to disable {{name}}',
         deleteTitle: 'Delete {{count}} skills?',
-        deleteBody: 'This removes the selected skills from Skills Hub and clears synced links created by this app.',
+        deleteBody: 'This removes the selected skills from PilotHub and clears synced links created by this app.',
         deleteConfirm: 'Delete {{count}} skills',
         deleteProgress: '{{current}}/{{total}} Deleting {{name}} ...',
         deleteSuccess: 'Deleted {{count}} skills.',
@@ -286,7 +286,7 @@ export const resources = {
           'Enabled tools appear in install, import, sync, and Skill detail workflows.',
         customSection: 'Custom tools',
         customHint:
-          'Add internal or wrapped agents by pointing Skills Hub at their skills directories.',
+          'Add internal or wrapped agents by pointing PilotHub at their skills directories.',
         missingSection: '{{count}} undetected tools',
         noDetectedTools: 'No detected tools yet. Undetected built-in tools are folded below.',
         totalCount: 'Total',
@@ -344,7 +344,7 @@ export const resources = {
         'Optional. Set a GitHub personal access token to increase API rate limits from 60/hr to 5,000/hr.',
       networkProxy: 'Network proxy',
       networkProxyHint:
-        'Use a local proxy for app network requests, including search, Git updates, and app updates. If port 7890 is detected on first launch, this is enabled automatically.',
+        'Use a local proxy for app network requests, including search and Git updates. If port 7890 is detected on first launch, this is enabled automatically.',
       networkProxyPort: 'Proxy port',
       networkProxyPortHint:
         'Change this only if your local proxy uses another port.',
@@ -352,6 +352,8 @@ export const resources = {
         'Detected local proxy port 7890 and enabled the network proxy automatically.',
       appUpdates: 'App updates',
       updateHint: 'Click “Check” to look for updates.',
+      updaterDisabled:
+        'App updates are temporarily disabled until PilotHub has its own release channel and signing key.',
       checkForUpdates: 'Check',
       autoUpdateSystemTask: 'System scheduled update',
       autoUpdateSystemTaskDesc:
@@ -668,7 +670,7 @@ export const resources = {
   },
   zh: {
     translation: {
-      appName: 'Skills Hub',
+      appName: 'PilotHub',
       unknown: '未知',
       languageShort: {
         en: 'EN',
@@ -717,7 +719,7 @@ export const resources = {
       moreTools: '+{{count}} 个',
       installSuccess: '"{{name}}" 已安装并同步到 {{count}} 个工具',
       settings: '设置',
-      settingsPageSubtitle: '配置界面、存储、GitHub 访问和更新。',
+      settingsPageSubtitle: '配置界面、存储和 GitHub 访问。',
       settingsSummary: '设置摘要',
       settingsSectionAppearance: '界面',
       settingsSectionAppearanceDesc: '设置应用语言和外观模式。',
@@ -726,13 +728,13 @@ export const resources = {
       settingsSectionNetwork: 'GitHub 与网络',
       settingsSectionNetworkDesc: '配置 GitHub Token 和应用联网代理。',
       settingsSectionUpdates: '应用更新',
-      settingsSectionUpdatesDesc: '查看当前版本并检查应用更新。',
+      settingsSectionUpdatesDesc: '查看已安装版本和发布通道状态。',
       appVersion: '应用版本',
       projectLink: {
         title: '开源项目',
         description: '查看源代码、版本发布和问题反馈。',
         view: '在 GitHub 查看',
-        open: '在 GitHub 打开 Skills Hub',
+        open: '在 GitHub 打开 PilotHub',
         openFailed: '无法打开项目页面',
       },
       titlebarUpdate: {
@@ -832,7 +834,7 @@ export const resources = {
         enableFailedTitle: '启用「{{name}}」失败',
         disableFailedTitle: '停用「{{name}}」失败',
         deleteTitle: '删除 {{count}} 个 Skills？',
-        deleteBody: '将从 Skills Hub 删除所选 Skills，并清理由本应用创建的同步链接。',
+        deleteBody: '将从 PilotHub 删除所选 Skills，并清理由本应用创建的同步链接。',
         deleteConfirm: '删除 {{count}} 个 Skills',
         deleteProgress: '{{current}}/{{total}} 正在删除「{{name}}」...',
         deleteSuccess: '已删除 {{count}} 个 Skills。',
@@ -1002,7 +1004,7 @@ export const resources = {
         '可选。设置 GitHub 个人访问令牌，可将 API 速率限制从 60 次/小时提升到 5,000 次/小时。',
       networkProxy: '网络代理',
       networkProxyHint:
-        '为应用联网请求使用本地代理，包括搜索、Git 更新和应用更新。首次启动检测到 7890 端口时会自动开启。',
+        '为应用联网请求使用本地代理，包括搜索和 Git 更新。首次启动检测到 7890 端口时会自动开启。',
       networkProxyPort: '代理端口',
       networkProxyPortHint:
         '只有本地代理使用其他端口时才需要修改。',
@@ -1010,6 +1012,7 @@ export const resources = {
         '已检测到本地代理端口 7890，并自动开启网络代理。',
       appUpdates: '应用更新',
       updateHint: '点击“检查更新”获取最新版本。',
+      updaterDisabled: '应用更新暂时关闭，待 PilotHub 建立独立发布通道和签名密钥后启用。',
       checkForUpdates: '检查更新',
       autoUpdateSystemTask: '系统定时更新',
       autoUpdateSystemTaskDesc:

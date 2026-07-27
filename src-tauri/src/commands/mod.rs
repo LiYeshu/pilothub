@@ -28,7 +28,7 @@ use crate::core::installer::{
     update_managed_skill_from_source, GitSkillCandidate, InstallResult, LocalSkillCandidate,
 };
 use crate::core::network_proxy::{
-    app_http_client, get_github_proxy_config as get_github_proxy_config_core,
+    get_github_proxy_config as get_github_proxy_config_core,
     get_github_proxy_url as get_github_proxy_url_core,
     set_github_proxy_config as set_github_proxy_config_core,
     set_github_proxy_url as set_github_proxy_url_core, GithubProxyConfig,
@@ -1245,47 +1245,6 @@ pub async fn search_github(
             Some(token.as_str())
         };
         search_github_repos(&query, limit, token_opt, &proxy_url)
-    })
-    .await
-    .map_err(|err| err.to_string())?
-    .map_err(format_anyhow_error)
-}
-
-#[derive(Debug, Deserialize)]
-struct GithubReleaseApiResponse {
-    body: Option<String>,
-}
-
-#[tauri::command]
-pub async fn get_github_release_notes(
-    store: State<'_, SkillStore>,
-    version: String,
-) -> Result<Option<String>, String> {
-    let store = store.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let proxy_url = get_github_proxy_url_core(&store)?;
-        let tag = format!("v{}", version.trim().trim_start_matches('v'));
-        let url = format!(
-            "https://api.github.com/repos/qufei1993/skills-hub/releases/tags/{}",
-            urlencoding::encode(&tag)
-        );
-        let client = app_http_client(&proxy_url, Some(20))?;
-        let response = client
-            .get(url)
-            .header("User-Agent", "skills-hub")
-            .header("Accept", "application/vnd.github+json")
-            .send()
-            .context("GitHub release notes request failed")?;
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Ok(None);
-        }
-        let response = response
-            .error_for_status()
-            .context("GitHub release notes returned error")?;
-        let result: GithubReleaseApiResponse = response
-            .json()
-            .context("parse GitHub release notes response")?;
-        Ok(result.body)
     })
     .await
     .map_err(|err| err.to_string())?
