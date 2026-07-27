@@ -97,7 +97,7 @@ The first release does not include:
 | PR-001 | Repository governance, upstream record, baseline, and licenses |
 | PR-002 | Product name, desktop metadata, UI copy, icons, and updater shutdown |
 | PR-003 | Migration from `~/.skillshub` to the `~/.pilothub` directory structure |
-| PR-004 | `baoyu-skills` end-to-end verification in Claude Code and Codex |
+| PR-004 | `baoyu-skills` installation and Agent discovery verification |
 
 Brand changes and storage migration stay in separate change sets. APM integration starts after both Agent adapters pass the Skill test.
 
@@ -124,6 +124,8 @@ See [UPSTREAM.md](UPSTREAM.md) for the upstream sync policy and [docs/BASELINE.m
 ```
 
 When PilotHub finds legacy data under `~/.skillshub`, it asks before migrating. It copies and verifies the data, updates database paths in one transaction, keeps a backup, and does not delete the legacy directory.
+
+The first external Skill verification is documented in [docs/E2E-BAOYU.md](docs/E2E-BAOYU.md).
 
 ## Development
 

@@ -18,3 +18,7 @@ pub mod sync_engine;
 pub mod system_scheduler;
 pub mod temp_cleanup;
 pub mod tool_adapters;
+
+#[cfg(test)]
+#[path = "tests/e2e_baoyu.rs"]
+mod e2e_baoyu;
