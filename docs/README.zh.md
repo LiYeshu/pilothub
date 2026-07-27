@@ -1,14 +1,14 @@
-# Skills Hub（Tauri Desktop）
+# PilotHub（Tauri Desktop）
 
-一个跨平台桌面应用（Tauri + React），用于集中安装、整理、更新 Agent Skills，并把它们同步到多个 AI 编程工具的全局或项目级 skills 目录。Skills Hub 会优先使用 symlink/junction，同步失败时自动回退到 copy，实现 “Install once, sync everywhere”。
+PilotHub 是一个 AI Agent 扩展管理中心。当前版本用于集中安装、整理、更新 Agent Skills，并把它们同步到多个 AI 编程工具的全局或项目级 skills 目录；未来可扩展到 MCP、Agents、Prompts 和 Hooks。PilotHub 会优先使用 symlink/junction，同步失败时自动回退到 copy，实现 “Install once, sync everywhere”。
 
 > English documentation: [`README.md`](../README.md)
 
-## 为什么使用 Skills Hub
+## 为什么使用 PilotHub
 
 AI 编程工具越来越多，每个工具都有自己的 skills 目录和安装方式。手动维护这些目录会带来几个问题：同一个 Skill 要复制多份、更新来源不清楚、不同工具启用状态不一致、批量整理成本高。
 
-Skills Hub 的做法是：把 Skill 统一安装到中心仓库，再按你的选择同步到 Claude Code、Codex、Cursor、OpenCode、Antigravity 等工具。你可以为 Skill 打标签、选择全局或项目范围、批量调整工具目标，也可以让系统定时帮你更新 Git 和本地来源的 Skill。
+PilotHub 的做法是：把 Skill 统一安装到中心仓库，再按你的选择同步到 Claude Code、Codex、Cursor、OpenCode、Antigravity 等工具。你可以为 Skill 打标签、选择全局或项目范围、批量调整工具目标，也可以让系统定时帮你更新 Git 和本地来源的 Skill。
 
 ## 主要功能
 
@@ -66,7 +66,7 @@ Explore 汇总精选仓库中的 Skill，并支持在线搜索。点击 Install 
 
 1. 从 Explore、本地目录或 Git 仓库安装 Skill。
 2. 安装前选择标签、同步范围和目标工具。
-3. Skills Hub 将 Skill 保存到中心仓库，默认目录为 `~/.skillshub`。
+3. PilotHub 将 Skill 保存到中心仓库，默认目录为 `~/.pilothub/extensions`。
 4. 按工具规则同步到全局 skills 目录或项目级 skills 目录。
 5. 后续可以在 My Skills 中批量整理、启停、删除，或在管理中心配置自动更新和工具目标。
 
@@ -180,7 +180,7 @@ cargo test
 - Cursor 为什么强制 Copy？Cursor 当前不支持软链（symlink/junction）形式的技能目录，因此同步到 Cursor 时会固定使用目录复制（copy）。
 - 为什么有时会变成 Copy？默认优先 symlink/junction，但在某些系统（尤其 Windows）可能因为权限/策略导致无法创建链接，会自动回退到目录复制。
 - `TARGET_EXISTS|...` 是什么意思？目标目录已存在且默认不覆盖（为了安全）。你需要先清理目标目录，或在“接管/覆盖”的明确流程里重试。
-- macOS Gatekeeper 备注（未签名/未公证构建，不同 macOS 版本表现可能不同）：如提示“已损坏/无法验证开发者”，可执行 `xattr -cr "/Applications/Skills Hub.app"`（https://v2.tauri.app/distribute/#macos）。
+- macOS Gatekeeper 备注（未签名/未公证构建，不同 macOS 版本表现可能不同）：如提示“已损坏/无法验证开发者”，可执行 `xattr -cr "/Applications/PilotHub.app"`（https://v2.tauri.app/distribute/#macos）。
 
 ## 支持的系统
 

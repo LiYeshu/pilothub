@@ -1,8 +1,8 @@
-# Skills Hub - Project Rules
+# PilotHub - Project Rules
 
 ## Overview
 
-Skills Hub is a cross-platform desktop app (Tauri 2 + React 19) for managing AI Agent Skills and syncing them to 47+ AI coding tools. Core concept: "Install once, sync everywhere."
+PilotHub is a cross-platform desktop app (Tauri 2 + React 19) for managing AI Agent extensions. Its current production capability installs and syncs Skills across 47+ AI coding tools; MCP, Agents, Prompts, and Hooks remain future extension types. Core concept: "Install once, sync everywhere."
 
 ## Tech Stack
 

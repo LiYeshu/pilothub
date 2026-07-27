@@ -377,7 +377,7 @@ jobs:
             echo
             echo '**Windows Note:** Windows SmartScreen may show a warning during installation. This is normal for unsigned executables. The application is safe to use.'
             echo
-            echo '**macOS Note:** macOS Gatekeeper workaround (only needed on some macOS versions): `xattr -cr "/Applications/Skills Hub.app"` (https://v2.tauri.app/distribute/#macos).'
+            echo '**macOS Note:** macOS Gatekeeper workaround (only needed on some macOS versions): `xattr -cr "/Applications/PilotHub.app"` (https://v2.tauri.app/distribute/#macos).'
           } >> release-notes.md
 
       - name: Generate updater.json
@@ -471,7 +471,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Skills Hub ${{ github.ref_name }}
+          name: PilotHub ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-') }}
           body_path: release-notes.md
           files: |
