@@ -15,10 +15,9 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         {
-          "url": "https://github.com/qufei1993/skills-hub"
+          "url": "https://github.com/LiYeshu/pilothub"
         }
       ]
-    },
-    "updater:default"
+    }
   ]
 }

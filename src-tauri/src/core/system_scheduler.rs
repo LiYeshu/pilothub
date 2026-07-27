@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 
 use super::auto_update::{AutoUpdateIntervalUnit, AutoUpdateSchedule, AutoUpdateScheduleType};
 
-pub const TASK_LABEL: &str = "com.skillshub.autoupdate";
+pub const TASK_LABEL: &str = "com.pilothub.autoupdate";
 const BACKGROUND_TASK_ARGS: [&str; 3] = ["--background-task", "update-skills", "--force"];
 
 #[derive(Clone, Debug)]
@@ -33,7 +33,7 @@ pub fn scheduler_executable_for_current_exe(current_exe: &Path) -> Result<PathBu
     {
         let path = current_exe.to_string_lossy();
         if path.contains("/target/debug/") {
-            let runner = current_exe.with_file_name("skills-hub-autoupdate-runner");
+            let runner = current_exe.with_file_name("pilothub-autoupdate-runner");
             std::fs::copy(current_exe, &runner)
                 .with_context(|| format!("copy auto update runner to {:?}", runner))?;
             return Ok(runner);
@@ -140,9 +140,9 @@ pub fn build_launch_agent_plist(config: &SchedulerConfig) -> String {
   <key>RunAtLoad</key>
   <false/>
   <key>StandardOutPath</key>
-  <string>/tmp/skills-hub-auto-update.log</string>
+  <string>/tmp/pilothub-auto-update.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/skills-hub-auto-update.err</string>
+  <string>/tmp/pilothub-auto-update.err</string>
 </dict>
 </plist>
 "#,
@@ -229,7 +229,7 @@ pub fn windows_schtasks_run_args() -> Vec<String> {
 #[cfg_attr(not(any(test, all(unix, not(target_os = "macos")))), allow(dead_code))]
 pub fn build_systemd_service(config: &SchedulerConfig) -> String {
     format!(
-        "[Unit]\nDescription=Skills Hub automatic skill update\n\n[Service]\nType=oneshot\nExecStart={} {} {} {}\n",
+        "[Unit]\nDescription=PilotHub automatic skill update\n\n[Service]\nType=oneshot\nExecStart={} {} {} {}\n",
         systemd_escape_path(&config.executable),
         BACKGROUND_TASK_ARGS[0],
         BACKGROUND_TASK_ARGS[1],
@@ -248,7 +248,7 @@ pub fn build_systemd_timer(config: &SchedulerConfig) -> String {
         }
     };
     format!(
-        "[Unit]\nDescription=Run Skills Hub automatic skill update\n\n[Timer]\nOnBootSec=5min\n{schedule}\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n"
+        "[Unit]\nDescription=Run PilotHub automatic skill update\n\n[Timer]\nOnBootSec=5min\n{schedule}\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n"
     )
 }
 

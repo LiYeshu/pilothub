@@ -53,7 +53,7 @@ pub(super) fn search_github_repos_inner(
         limit.clamp(1, 50)
     );
 
-    let mut req = client.get(url).header("User-Agent", "skills-hub");
+    let mut req = client.get(url).header("User-Agent", "pilothub");
     if let Some(t) = token {
         req = req.header("Authorization", format!("Bearer {}", t));
     }

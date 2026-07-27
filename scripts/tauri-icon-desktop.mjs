@@ -27,7 +27,7 @@ if (!source) {
 
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
 
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-hub-tauri-icons-'))
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pilothub-tauri-icons-'))
 try {
   const res = spawnSync(
     'npx',
@@ -56,6 +56,10 @@ try {
     fs.copyFileSync(src, dst)
   }
 
+  fs.copyFileSync(path.join(tempDir, 'icon.png'), path.join(outDir, 'icon-source.png'))
+  fs.copyFileSync(path.join(tempDir, 'icon.png'), path.join(projectRoot, 'public', 'logo.png'))
+  fs.copyFileSync(path.join(tempDir, 'icon.png'), path.join(projectRoot, 'public', 'logo-mark.png'))
+
   for (const entry of fs.readdirSync(outDir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       fs.rmSync(path.join(outDir, entry.name), { recursive: true, force: true })
@@ -67,4 +71,3 @@ try {
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true })
 }
-
