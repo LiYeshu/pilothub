@@ -6,7 +6,7 @@
 - Fork: https://github.com/LiYeshu/pilothub
 - Baseline commit: `42d3ae1fb863c92f04eb2a2827720ac1d93baef4`
 - Baseline tag: `skills-hub-baseline-2026-07-27`
-- Baseline tag status: Created locally; remote push pending Git CLI authentication
+- Baseline tag status: Published
 
 ## Git configuration
 
@@ -49,5 +49,5 @@
 - All 12 existing `tool_adapters` tests passed. The local `~/.claude` and `~/.codex` detection directories both exist.
 - The production build reports existing chunk-size and mixed dynamic/static import warnings.
 - `npm install` reports 12 dependency vulnerabilities: 1 low, 1 moderate, and 10 high.
-- GitHub CLI is installed; its final OAuth authorization is pending user confirmation in Chrome.
-- The baseline tag exists locally but has not been pushed.
+- GitHub CLI 2.96.0 is authenticated as `LiYeshu`.
+- The baseline tag is available locally and on the Fork.
