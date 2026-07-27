@@ -1,4 +1,5 @@
 use super::*;
+use crate::core::extensions::ExtensionComponentType;
 use crate::core::skill_store::SkillRecord;
 
 fn make_store() -> (tempfile::TempDir, SkillStore) {
@@ -232,4 +233,39 @@ fn get_managed_skills_impl_maps_targets() {
     assert_eq!(out[0].targets[0].tool, "cursor");
     assert_eq!(out[0].targets[0].scope, "global");
     assert!(out[0].targets[0].project_path.is_none());
+}
+
+#[test]
+fn get_extensions_impl_groups_skills_by_source() {
+    let (_dir, store) = make_store();
+    for (id, name) in [("s1", "Cover Image"), ("s2", "Post to WeChat")] {
+        store
+            .upsert_skill(&SkillRecord {
+                id: id.to_string(),
+                name: name.to_string(),
+                description: None,
+                source_type: "git".to_string(),
+                source_ref: Some("https://github.com/JimLiu/baoyu-skills".to_string()),
+                source_subpath: Some(format!("skills/{id}")),
+                source_revision: None,
+                central_path: format!("/tmp/{id}"),
+                content_hash: None,
+                created_at: 1,
+                updated_at: 2,
+                last_sync_at: None,
+                last_seen_at: 1,
+                enabled: true,
+                status: "ok".to_string(),
+            })
+            .unwrap();
+    }
+
+    let extensions = get_extensions_impl(&store).unwrap();
+    assert_eq!(extensions.len(), 1);
+    assert_eq!(extensions[0].name, "baoyu-skills");
+    assert_eq!(extensions[0].components.len(), 2);
+    assert_eq!(
+        extensions[0].components[0].component_type,
+        ExtensionComponentType::Skill
+    );
 }

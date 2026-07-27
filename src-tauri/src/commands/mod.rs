@@ -20,6 +20,7 @@ use crate::core::cache_cleanup::{
 use crate::core::cancel_token::CancelToken;
 use crate::core::central_repo::{ensure_central_repo, resolve_central_repo_path};
 use crate::core::content_hash::hash_dir;
+use crate::core::extensions::{map_skills_to_extensions, Extension};
 use crate::core::featured_skills::{fetch_featured_skills, FeaturedSkill};
 use crate::core::github_search::{search_github_repos, RepoSummary};
 use crate::core::installer::{
@@ -1435,6 +1436,11 @@ pub fn get_managed_skills(store: State<'_, SkillStore>) -> Result<Vec<ManagedSki
 }
 
 #[tauri::command]
+pub fn get_extensions(store: State<'_, SkillStore>) -> Result<Vec<Extension>, String> {
+    get_extensions_impl(store.inner())
+}
+
+#[tauri::command]
 pub fn get_tags(store: State<'_, SkillStore>) -> Result<Vec<TagWithCountDto>, String> {
     store
         .list_tags_with_counts()
@@ -1707,6 +1713,13 @@ fn get_managed_skills_impl(store: &SkillStore) -> Result<Vec<ManagedSkillDto>, S
             }
         })
         .collect())
+}
+
+fn get_extensions_impl(store: &SkillStore) -> Result<Vec<Extension>, String> {
+    store
+        .list_skills()
+        .map(map_skills_to_extensions)
+        .map_err(format_anyhow_error)
 }
 
 #[derive(Debug, Serialize)]

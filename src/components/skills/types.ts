@@ -89,6 +89,26 @@ export type SkillCollection = {
   skills: GitSkillCandidate[]
 }
 
+export type ExtensionComponentType = 'skill'
+
+export type ExtensionComponent = {
+  id: string
+  type: ExtensionComponentType
+  name: string
+  description?: string | null
+  skill_id: string
+}
+
+export type Extension = {
+  id: string
+  name: string
+  source: {
+    source_type: string
+    source_ref?: string | null
+  }
+  components: ExtensionComponent[]
+}
+
 export type LocalSkillCandidate = {
   name: string
   description?: string | null

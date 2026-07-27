@@ -154,6 +154,7 @@ pub fn run() {
             commands::set_github_proxy_url,
             commands::import_existing_skill,
             commands::get_managed_skills,
+            commands::get_extensions,
             commands::get_tags,
             commands::create_tag,
             commands::rename_tag,
