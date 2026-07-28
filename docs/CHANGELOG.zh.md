@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### 新增
+- **Microsoft APM 托管运行时**：PilotHub 可下载并校验官方 APM 运行时，并优先复用可用的系统安装。
+- **APM Skill 安装**：GitHub Skill Collection 可预览并将单个 Skill 安装到 Codex 项目。
+- **APM 生命周期管理**：APM 管理的 Skill 支持指定依赖更新与一致卸载，失败时保留 PilotHub 记录并返回完整诊断。
+
+### 验证
+- **隔离端到端测试**：使用 `baoyu-cover-image` 验证安装、审计、指定更新和卸载，全程不写入真实 Codex、PilotHub 或 APM 用户目录。
+
 ## [0.8.0] - 2026-07-17
 
 ### 新增
