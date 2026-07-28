@@ -35,7 +35,9 @@ use crate::core::network_proxy::{
     set_github_proxy_url as set_github_proxy_url_core, GithubProxyConfig,
 };
 use crate::core::onboarding::{build_onboarding_plan, OnboardingPlan};
-use crate::core::package_managers::apm::ApmAdapter;
+use crate::core::package_managers::apm::{
+    github_skill_package_reference, uninstall_project_skill, ApmAdapter,
+};
 use crate::core::package_managers::runtime::{
     find_managed_apm, install_latest_apm, managed_apm_root,
 };
@@ -1112,30 +1114,6 @@ pub async fn install_git_selection_with_apm(
     .map_err(format_anyhow_error)
 }
 
-fn github_skill_package_reference(repo_url: &str, subpath: &str) -> anyhow::Result<String> {
-    let repo_url = repo_url.trim().trim_end_matches('/');
-    let path = subpath.trim().trim_matches('/');
-    if repo_url.contains("/tree/") || repo_url.contains("/blob/") {
-        anyhow::bail!("APM installation requires a GitHub repository root URL");
-    }
-    let repo = repo_url
-        .strip_prefix("https://github.com/")
-        .context("APM installation currently supports HTTPS GitHub URLs only")?
-        .trim_end_matches(".git");
-    let segments = repo.split('/').collect::<Vec<_>>();
-    if segments.len() != 2 || segments.iter().any(|segment| segment.is_empty()) {
-        anyhow::bail!("invalid GitHub repository URL");
-    }
-    if path.is_empty()
-        || std::path::Path::new(path)
-            .components()
-            .any(|component| !matches!(component, std::path::Component::Normal(_)))
-    {
-        anyhow::bail!("invalid Skill subpath");
-    }
-    Ok(format!("{}/{}", repo.trim_end_matches('/'), path))
-}
-
 fn rollback_apm_skill_import(store: &SkillStore, result: &InstallResult) {
     let _ = std::fs::remove_dir_all(&result.central_path);
     let _ = store.delete_skill(&result.skill_id);
@@ -1372,18 +1350,38 @@ pub async fn unsync_skill_from_tool(
                 vec![tool.clone()]
             };
 
-        // Remove filesystem target once (shared dir => shared target path).
-        let mut removed = false;
+        let mut matching_targets = Vec::new();
         for k in &group_tool_keys {
             if let Some(target) =
                 store.get_skill_target(&skillId, k, scope, project_path.as_deref())?
             {
-                if !removed {
-                    remove_path_any(&target.target_path).map_err(anyhow::Error::msg)?;
-                    removed = true;
-                }
-                store.delete_skill_target(&skillId, k, scope, project_path.as_deref())?;
+                matching_targets.push(target);
             }
+        }
+
+        let apm_targets = matching_targets
+            .iter()
+            .filter(|target| target.mode == "apm")
+            .collect::<Vec<_>>();
+        if !apm_targets.is_empty() {
+            let first = apm_targets[0];
+            if apm_targets.iter().any(|target| {
+                target.project_path != first.project_path || target.scope != first.scope
+            }) {
+                anyhow::bail!("inconsistent Microsoft APM target records");
+            }
+            uninstall_apm_target(&store, &skillId, first)?;
+        } else if let Some(first) = matching_targets.first() {
+            remove_path_any(&first.target_path).map_err(anyhow::Error::msg)?;
+        }
+
+        for target in matching_targets {
+            store.delete_skill_target(
+                &skillId,
+                &target.tool,
+                &target.scope,
+                target.project_path.as_deref(),
+            )?;
         }
 
         Ok::<_, anyhow::Error>(())
@@ -1404,6 +1402,11 @@ pub async fn set_skill_enabled(
     tauri::async_runtime::spawn_blocking(move || {
         if !enabled {
             let targets = store.list_skill_targets(&skillId)?;
+            if targets.iter().any(|target| target.mode == "apm") {
+                anyhow::bail!(
+                    "Microsoft APM managed Skills must be uninstalled instead of disabled"
+                );
+            }
             let mut remove_failures: Vec<String> = Vec::new();
             for target in targets {
                 if target.status != "disabled" {
@@ -1745,25 +1748,34 @@ pub async fn delete_managed_skill(
         // 便于排查“按钮点了没反应”：确认前端确实触发了命令
         println!("[delete_managed_skill] skillId={}", skillId);
 
-        // 先删除已同步到各工具目录的副本/软链接
-        // 注意：如果先删 skills 行，会触发 skill_targets cascade，导致无法再拿到 target_path
         let targets = store.list_skill_targets(&skillId)?;
+        let record = store
+            .get_skill_by_id(&skillId)?
+            .ok_or_else(|| anyhow::anyhow!("Skill not found: {skillId}"))?;
+
+        let mut uninstalled_apm_projects = std::collections::HashSet::new();
+        for target in targets.iter().filter(|target| target.mode == "apm") {
+            let project_path = target
+                .project_path
+                .as_deref()
+                .context("Microsoft APM target is missing project path")?;
+            if uninstalled_apm_projects.insert(project_path.to_string()) {
+                uninstall_apm_target(&store, &skillId, target)?;
+            }
+        }
 
         let mut remove_failures: Vec<String> = Vec::new();
-        for target in targets {
+        for target in targets.iter().filter(|target| target.mode != "apm") {
             if let Err(err) = remove_path_any(&target.target_path) {
                 remove_failures.push(format!("{}: {}", target.target_path, err));
             }
         }
 
-        let record = store.get_skill_by_id(&skillId)?;
-        if let Some(skill) = record {
-            let path = std::path::PathBuf::from(skill.central_path);
-            if path.exists() {
-                std::fs::remove_dir_all(&path)?;
-            }
-            store.delete_skill(&skillId)?;
+        let path = std::path::PathBuf::from(record.central_path);
+        if path.exists() {
+            std::fs::remove_dir_all(&path)?;
         }
+        store.delete_skill(&skillId)?;
 
         if !remove_failures.is_empty() {
             anyhow::bail!(
@@ -1777,6 +1789,43 @@ pub async fn delete_managed_skill(
     .await
     .map_err(|err| err.to_string())?
     .map_err(format_anyhow_error)
+}
+
+fn uninstall_apm_target(
+    store: &SkillStore,
+    skill_id: &str,
+    target: &SkillTargetRecord,
+) -> anyhow::Result<()> {
+    if target.scope != "project" {
+        anyhow::bail!("Microsoft APM uninstall currently supports project scope only");
+    }
+    let project_path = target
+        .project_path
+        .as_deref()
+        .context("Microsoft APM target is missing project path")?;
+    let project_root = expand_home_path(project_path)?;
+    if !project_root.is_dir() {
+        anyhow::bail!(
+            "Microsoft APM project directory no longer exists: {:?}",
+            project_root
+        );
+    }
+
+    let skill = store
+        .get_skill_by_id(skill_id)?
+        .ok_or_else(|| anyhow::anyhow!("Skill not found: {skill_id}"))?;
+    let source_ref = skill
+        .source_ref
+        .as_deref()
+        .context("Microsoft APM managed Skill is missing source URL")?;
+    let source_subpath = skill
+        .source_subpath
+        .as_deref()
+        .context("Microsoft APM managed Skill is missing source subpath")?;
+    let package = github_skill_package_reference(source_ref, source_subpath)?;
+    let (adapter, _) =
+        resolve_apm_adapter()?.ok_or_else(|| anyhow::anyhow!("Microsoft APM is not available"))?;
+    uninstall_project_skill(&adapter, &package, &project_root)
 }
 
 fn remove_path_any(path: &str) -> Result<(), String> {

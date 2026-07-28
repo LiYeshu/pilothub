@@ -1,6 +1,7 @@
+use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 use super::{
     PackageManager, PackageManagerAvailability, PackageManagerCommand, PackageManagerContext,
@@ -34,6 +35,67 @@ impl ApmAdapter {
             working_dir: context.working_dir.clone(),
         }
     }
+}
+
+pub fn github_skill_package_reference(repo_url: &str, subpath: &str) -> Result<String> {
+    let repo_url = repo_url.trim().trim_end_matches('/');
+    let path = subpath.trim().trim_matches('/');
+    if repo_url.contains("/tree/") || repo_url.contains("/blob/") {
+        bail!("APM installation requires a GitHub repository root URL");
+    }
+    let repo = repo_url
+        .strip_prefix("https://github.com/")
+        .context("APM installation currently supports HTTPS GitHub URLs only")?
+        .trim_end_matches(".git");
+    let segments = repo.split('/').collect::<Vec<_>>();
+    if segments.len() != 2 || segments.iter().any(|segment| segment.is_empty()) {
+        bail!("invalid GitHub repository URL");
+    }
+    if path.is_empty()
+        || Path::new(path)
+            .components()
+            .any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        bail!("invalid Skill subpath");
+    }
+    Ok(format!("{}/{}", repo.trim_end_matches('/'), path))
+}
+
+pub fn uninstall_project_skill(
+    adapter: &ApmAdapter,
+    package: &str,
+    project_root: &Path,
+) -> Result<()> {
+    let context = PackageManagerContext {
+        working_dir: project_root.to_path_buf(),
+        scope: PackageManagerScope::Project,
+        targets: Vec::new(),
+    };
+    let command = adapter.uninstall(package, &context)?;
+    let output = Command::new(&command.program)
+        .args(&command.args)
+        .current_dir(&command.working_dir)
+        .env("APM_NON_INTERACTIVE", "1")
+        .output()
+        .with_context(|| format!("run Microsoft APM from {:?}", command.program))?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let detail = [stdout, stderr]
+        .into_iter()
+        .filter(|message| !message.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if detail.is_empty() {
+        bail!(
+            "Microsoft APM uninstall failed with exit code {}",
+            output.status.code().unwrap_or(-1)
+        );
+    }
+    bail!("Microsoft APM uninstall failed:\n{detail}");
 }
 
 impl PackageManager for ApmAdapter {
@@ -191,6 +253,46 @@ mod tests {
             ["uninstall", "microsoft/apm-sample-package", "--global"]
         );
         assert_eq!(adapter.list(&context).unwrap().args, ["list", "--global"]);
+    }
+
+    #[test]
+    fn uninstall_builds_project_command_without_global_flag() {
+        let adapter = ApmAdapter::default();
+        let context = context(PackageManagerScope::Project);
+
+        assert_eq!(
+            adapter
+                .uninstall("microsoft/apm-sample-package", &context)
+                .unwrap()
+                .args,
+            ["uninstall", "microsoft/apm-sample-package"]
+        );
+    }
+
+    #[test]
+    fn builds_github_skill_package_reference() {
+        assert_eq!(
+            github_skill_package_reference(
+                "https://github.com/JimLiu/baoyu-skills.git",
+                "skills/baoyu-cover-image",
+            )
+            .unwrap(),
+            "JimLiu/baoyu-skills/skills/baoyu-cover-image"
+        );
+    }
+
+    #[test]
+    fn rejects_unsafe_or_non_root_github_package_references() {
+        assert!(github_skill_package_reference(
+            "https://github.com/JimLiu/baoyu-skills/tree/main",
+            "skills/baoyu-cover-image",
+        )
+        .is_err());
+        assert!(github_skill_package_reference(
+            "https://github.com/JimLiu/baoyu-skills",
+            "../baoyu-cover-image",
+        )
+        .is_err());
     }
 
     #[test]
