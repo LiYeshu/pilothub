@@ -2928,6 +2928,7 @@ function App() {
     if (selected.length !== 1) return null
     const repo = gitCandidatesRepoUrl
       .trim()
+      .replace(/^https:\/\/github\.com\//, '')
       .replace(/\.git$/, '')
       .replace(/\/$/, '')
     return `apm install ${repo}/${selected[0].subpath} --target codex`
