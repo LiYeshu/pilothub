@@ -27,6 +27,15 @@ export const resources = {
       workspace: 'Extensions',
       workspaceSubtitle: 'AI Agent extension manager',
       addSkills: 'Add Skills',
+      extensions: {
+        title: 'Extensions',
+        subtitle: 'Installed capabilities grouped by their source.',
+        summary: 'Extension summary',
+        collections: 'collections',
+        skillCount: '{{count}} Skills',
+        emptyTitle: 'No Extensions yet',
+        emptyBody: 'Install a Skill collection to see it grouped here.',
+      },
       stats: {
         managed: 'Managed Skills',
         global: 'Global installs',
@@ -747,6 +756,15 @@ export const resources = {
       workspace: '扩展',
       workspaceSubtitle: 'AI Agent 扩展管理中心',
       addSkills: '添加 Skills',
+      extensions: {
+        title: 'Extensions',
+        subtitle: '按来源查看已安装的 Agent 扩展能力。',
+        summary: '扩展概览',
+        collections: '个扩展集合',
+        skillCount: '{{count}} 个 Skills',
+        emptyTitle: '暂无 Extensions',
+        emptyBody: '安装 Skill 集合后会在这里按来源归组展示。',
+      },
       stats: {
         managed: '托管 Skills',
         global: '全局安装',
