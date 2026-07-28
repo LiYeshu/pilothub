@@ -11,6 +11,9 @@ type GitPickModalProps = {
   gitCandidateSelected: Record<string, boolean>
   installScope: 'global' | 'project'
   targetLabels: string[]
+  installer: 'native' | 'apm'
+  apmCommand: string | null
+  apmTargetPath: string | null
   onRequestClose: () => void
   onCancel: () => void
   onToggleCandidate: (subpath: string, checked: boolean) => void
@@ -26,6 +29,9 @@ const GitPickModal = ({
   gitCandidateSelected,
   installScope,
   targetLabels,
+  installer,
+  apmCommand,
+  apmTargetPath,
   onRequestClose,
   onCancel,
   onToggleCandidate,
@@ -42,7 +48,7 @@ const GitPickModal = ({
       ),
     )
   }, [gitCandidates, normalizedQuery])
-  const selectedCount = filteredCandidates.filter(
+  const selectedCount = gitCandidates.filter(
     (c) => gitCandidateSelected[c.subpath],
   ).length
   const allVisibleSelected =
@@ -51,6 +57,16 @@ const GitPickModal = ({
 
   const toggleVisibleCandidates = (checked: boolean) => {
     filteredCandidates.forEach((c) => onToggleCandidate(c.subpath, checked))
+  }
+
+  const toggleCandidate = (subpath: string, checked: boolean) => {
+    if (installer === 'apm' && checked) {
+      gitCandidates.forEach((candidate) =>
+        onToggleCandidate(candidate.subpath, candidate.subpath === subpath),
+      )
+      return
+    }
+    onToggleCandidate(subpath, checked)
   }
 
   if (!open) return null
@@ -108,6 +124,20 @@ const GitPickModal = ({
             </section>
           ) : null}
           <p className="label">{t('gitPickBody')}</p>
+          {installer === 'apm' ? (
+            <div className="add-source-note">
+              <div className="apm-preview-details">
+                <span>{t('apmInstall.previewHelp')}</span>
+                {apmCommand ? <strong className="mono">{apmCommand}</strong> : null}
+                {apmTargetPath ? (
+                  <>
+                    <span>{t('apmInstall.target')}</span>
+                    <strong className="mono">{apmTargetPath}</strong>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <div className="pick-search">
             <Search size={16} className="search-icon-abs" />
             <input
@@ -118,7 +148,7 @@ const GitPickModal = ({
             />
           </div>
           <div className="pick-toolbar">
-            <label className="inline-checkbox">
+            {installer === 'native' ? <label className="inline-checkbox">
               <input
                 type="checkbox"
                 checked={allVisibleSelected}
@@ -126,7 +156,7 @@ const GitPickModal = ({
                 disabled={filteredCandidates.length === 0}
               />
               {t('selectAll')}
-            </label>
+            </label> : <span>{t('apmInstall.singleSkill')}</span>}
             <span className="pick-toolbar-count">
               {t('selectedCount', {
                 selected: selectedCount,
@@ -142,9 +172,10 @@ const GitPickModal = ({
               <div className="pick-item" key={c.subpath}>
                 <label className="pick-item-checkbox">
                   <input
-                    type="checkbox"
+                    type={installer === 'apm' ? 'radio' : 'checkbox'}
+                    name={installer === 'apm' ? 'apm-skill' : undefined}
                     checked={Boolean(gitCandidateSelected[c.subpath])}
-                    onChange={(e) => onToggleCandidate(c.subpath, e.target.checked)}
+                    onChange={(e) => toggleCandidate(c.subpath, e.target.checked)}
                   />
                 </label>
                 <div className="pick-item-main">
@@ -167,8 +198,12 @@ const GitPickModal = ({
           <button className="btn btn-secondary" onClick={onCancel} disabled={loading}>
             {t('cancel')}
           </button>
-          <button className="btn btn-primary" onClick={onInstall} disabled={loading}>
-            {t('installSelected')}
+          <button
+            className="btn btn-primary"
+            onClick={onInstall}
+            disabled={loading || (installer === 'apm' && selectedCount !== 1)}
+          >
+            {installer === 'apm' ? t('apmInstall.install') : t('installSelected')}
           </button>
         </div>
       </div>

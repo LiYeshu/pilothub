@@ -118,6 +118,9 @@ function App() {
   const [gitCollection, setGitCollection] = useState<SkillCollection | null>(null)
   const [gitCandidatesRepoUrl, setGitCandidatesRepoUrl] = useState<string>('')
   const [showGitPickModal, setShowGitPickModal] = useState(false)
+  const [gitPickInstaller, setGitPickInstaller] = useState<'native' | 'apm'>(
+    'native',
+  )
   const [gitCandidateSelected, setGitCandidateSelected] = useState<
     Record<string, boolean>
   >({})
@@ -1410,6 +1413,7 @@ function App() {
     setGitCollection(null)
     setGitCandidateSelected({})
     setGitCandidatesRepoUrl('')
+    setGitPickInstaller('native')
     setShowAddModal(true)
   }, [loading])
 
@@ -2476,6 +2480,7 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('actions.creatingGitSkill'))
+    setGitPickInstaller('native')
     try {
       const url = gitUrl.trim()
       const isFolderUrl = url.includes('/tree/') || url.includes('/blob/')
@@ -2608,6 +2613,51 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+      setLoadingStartAt(null)
+    }
+  }
+
+  const handlePreviewApmInstall = async () => {
+    const projectPaths = normalizeProjectPaths(installProjects)
+    if (installScope !== 'project' || projectPaths.length !== 1) {
+      setError(t('apmInstall.projectRequired'))
+      return
+    }
+    if (!gitUrl.trim()) {
+      setError(t('errors.requireGitUrl'))
+      return
+    }
+    setLoading(true)
+    setLoadingStartAt(Date.now())
+    setError(null)
+    setActionMessage(t('apmInstall.scanning'))
+    try {
+      const url = gitUrl.trim()
+      const collection = await invokeTauri<SkillCollection>(
+        'list_git_skills_cmd',
+        { repoUrl: url },
+      )
+      if (collection.skills.length === 0) {
+        throw new Error(t('errors.noSkillsFoundWithHint'))
+      }
+      setGitCandidatesRepoUrl(url)
+      setGitCollection(collection)
+      setGitCandidates(collection.skills)
+      setGitCandidateSelected(
+        Object.fromEntries(
+          collection.skills.map((candidate, index) => [
+            candidate.subpath,
+            index === 0,
+          ]),
+        ),
+      )
+      setGitPickInstaller('apm')
+      setShowGitPickModal(true)
+      setActionMessage(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -2814,6 +2864,94 @@ function App() {
       setLoadingStartAt(null)
     }
   }
+
+  const handleInstallSelectedCandidateWithApm = async () => {
+    const selected = gitCandidates.filter((candidate) =>
+      gitCandidateSelected[candidate.subpath],
+    )
+    const projectPaths = normalizeProjectPaths(installProjects)
+    if (selected.length !== 1) {
+      setError(t('apmInstall.singleSkill'))
+      return
+    }
+    if (projectPaths.length !== 1) {
+      setError(t('apmInstall.projectRequired'))
+      return
+    }
+    if (isSkillNameTaken(selected[0].name)) {
+      setError(t('errors.skillAlreadyExists', { name: selected[0].name }))
+      return
+    }
+
+    setLoading(true)
+    setLoadingStartAt(Date.now())
+    setError(null)
+    setActionMessage(t('apmInstall.installing', { name: selected[0].name }))
+    try {
+      const created = await invokeTauri<InstallResultDto>(
+        'install_git_selection_with_apm',
+        {
+          repoUrl: gitCandidatesRepoUrl,
+          subpath: selected[0].subpath,
+          name: gitName.trim() || undefined,
+          projectPath: projectPaths[0],
+        },
+      )
+      await applySelectedAddModalTags(created.skill_id, created.name)
+      setShowGitPickModal(false)
+      setGitCandidates([])
+      setGitCollection(null)
+      setGitCandidateSelected({})
+      setGitCandidatesRepoUrl('')
+      setGitPickInstaller('native')
+      setGitUrl('')
+      setGitName('')
+      resetInstallScope()
+      setShowAddModal(false)
+      await loadManagedSkills()
+      await loadTags()
+      setSuccessToastMessage(t('apmInstall.success', { name: created.name }))
+      setActionMessage(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+      setLoadingStartAt(null)
+    }
+  }
+
+  const apmPreviewCommand = useMemo(() => {
+    if (gitPickInstaller !== 'apm') return null
+    const selected = gitCandidates.filter((candidate) =>
+      gitCandidateSelected[candidate.subpath],
+    )
+    if (selected.length !== 1) return null
+    const repo = gitCandidatesRepoUrl
+      .trim()
+      .replace(/\.git$/, '')
+      .replace(/\/$/, '')
+    return `apm install ${repo}/${selected[0].subpath} --target codex`
+  }, [
+    gitCandidateSelected,
+    gitCandidates,
+    gitCandidatesRepoUrl,
+    gitPickInstaller,
+  ])
+
+  const apmPreviewTargetPath = useMemo(() => {
+    if (gitPickInstaller !== 'apm') return null
+    const selected = gitCandidates.filter((candidate) =>
+      gitCandidateSelected[candidate.subpath],
+    )
+    const projects = normalizeProjectPaths(installProjects)
+    if (selected.length !== 1 || projects.length !== 1) return null
+    return `${projects[0].replace(/\/$/, '')}/.agents/skills/${selected[0].name}`
+  }, [
+    gitCandidateSelected,
+    gitCandidates,
+    gitPickInstaller,
+    installProjects,
+  ])
 
   const handleDeleteManaged = async (skill: ManagedSkill) => {
     setLoading(true)
@@ -3634,6 +3772,7 @@ function App() {
         onInstallProjectsChange={handleInstallProjectsChange}
         onPickProject={handlePickProject}
         onSubmit={addModalTab === 'local' ? handleCreateLocal : handleCreateGit}
+        onPreviewApm={() => void handlePreviewApmInstall()}
         t={t}
       />
 
@@ -3821,11 +3960,20 @@ function App() {
           gitCandidates={gitCandidates}
           gitCandidateSelected={gitCandidateSelected}
           installScope={installScope}
-          targetLabels={installPreviewTargets}
+          targetLabels={
+            gitPickInstaller === 'apm' ? ['Codex'] : installPreviewTargets
+          }
+          installer={gitPickInstaller}
+          apmCommand={apmPreviewCommand}
+          apmTargetPath={apmPreviewTargetPath}
           onRequestClose={handleCloseGitPick}
           onCancel={handleCancelGitPick}
           onToggleCandidate={handleToggleGitCandidate}
-          onInstall={handleInstallSelectedCandidates}
+          onInstall={
+            gitPickInstaller === 'apm'
+              ? handleInstallSelectedCandidateWithApm
+              : handleInstallSelectedCandidates
+          }
           t={t}
         />
       ) : null}
