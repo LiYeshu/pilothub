@@ -129,6 +129,195 @@
   min-height: 0;
 }
 
+.extensions-page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px 32px 40px;
+}
+
+.extensions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.extensions-header h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.extensions-header p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.extensions-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.extensions-summary svg {
+  color: var(--accent-primary);
+}
+
+.extensions-summary strong {
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.extension-collection-list {
+  display: grid;
+  gap: 16px;
+}
+
+.extension-collection {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+}
+
+.extension-collection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.extension-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.extension-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-md);
+  color: var(--accent-primary);
+  background: var(--accent-soft-bg);
+}
+
+.extension-identity h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.extension-identity p {
+  overflow: hidden;
+  margin: 4px 0 0;
+  color: var(--text-tertiary);
+  font: 12px var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extension-count {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.extension-components {
+  display: grid;
+}
+
+.extension-component {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 13px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.extension-component:last-child {
+  border-bottom: 0;
+}
+
+.extension-component:hover {
+  background: var(--bg-element-hover);
+}
+
+.extension-component:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.extension-component > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.extension-component strong,
+.extension-component small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extension-component strong {
+  font-size: 13px;
+}
+
+.extension-component small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.extension-component svg {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.extensions-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 56px 20px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.extensions-empty svg {
+  color: var(--text-tertiary);
+}
+
+.extensions-empty strong {
+  color: var(--text-primary);
+}
+
+.extensions-empty span {
+  font-size: 13px;
+}
+
 .filter-bar {
   padding: 20px 32px 0 32px;
   display: flex;
@@ -4804,6 +4993,16 @@
 }
 
 @media (max-width: 760px) {
+  .extensions-page {
+    padding: 20px 16px 32px;
+  }
+
+  .extensions-header,
+  .extension-collection-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .settings-shell {
     width: 100%;
     padding: 16px 16px 36px;

@@ -1,6 +1,7 @@
 import { memo, type PointerEvent } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import {
+  Boxes,
   ChevronLeft,
   Compass,
   Layers3,
@@ -14,8 +15,10 @@ import type { TFunction } from 'i18next'
 type ManagementTab = 'tags' | 'tools' | 'updates'
 
 type HeaderProps = {
-  activeView: 'myskills' | 'explore' | 'detail' | 'settings' | 'manage'
+  activeView: 'extensions' | 'myskills' | 'explore' | 'detail' | 'settings' | 'manage'
+  detailParent: 'extensions' | 'myskills'
   managementTab: ManagementTab
+  extensionCount: number
   skillCount: number
   tagCount: number
   toolCount: number
@@ -24,7 +27,7 @@ type HeaderProps = {
   collapsed: boolean
   onToggleCollapsed: () => void
   onOpenSettings: () => void
-  onViewChange: (view: 'myskills' | 'explore' | 'manage') => void
+  onViewChange: (view: 'extensions' | 'myskills' | 'explore' | 'manage') => void
   onManagementTabChange: (tab: ManagementTab) => void
   t: TFunction
 }
@@ -39,7 +42,9 @@ const startWindowDrag = (event: PointerEvent<HTMLElement>) => {
 
 const Header = ({
   activeView,
+  detailParent,
   managementTab,
+  extensionCount,
   skillCount,
   tagCount,
   toolCount,
@@ -97,7 +102,27 @@ const Header = ({
       <div className="sidebar-section-label">{t('workspace')}</div>
       <nav className="sidebar-nav" aria-label={t('workspace')}>
         <button
-          className={activeView === 'myskills' || activeView === 'detail' ? 'active' : ''}
+          className={
+            activeView === 'extensions' ||
+            (activeView === 'detail' && detailParent === 'extensions')
+              ? 'active'
+              : ''
+          }
+          type="button"
+          onClick={() => onViewChange('extensions')}
+          title={collapsed ? t('extensions.title') : undefined}
+        >
+          <Boxes size={18} />
+          <span>{t('extensions.title')}</span>
+          <em>{extensionCount}</em>
+        </button>
+        <button
+          className={
+            activeView === 'myskills' ||
+            (activeView === 'detail' && detailParent === 'myskills')
+              ? 'active'
+              : ''
+          }
           type="button"
           onClick={() => onViewChange('myskills')}
           title={collapsed ? t('navMySkills') : undefined}
