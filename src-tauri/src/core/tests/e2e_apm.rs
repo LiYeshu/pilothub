@@ -1,6 +1,8 @@
 use std::process::{Command, Output};
 
-use crate::core::package_managers::apm::{uninstall_project_skill, ApmAdapter};
+use crate::core::package_managers::apm::{
+    uninstall_project_skill, update_project_skill, ApmAdapter,
+};
 use crate::core::package_managers::{
     PackageManager, PackageManagerCommand, PackageManagerContext, PackageManagerScope,
 };
@@ -44,6 +46,10 @@ fn installs_and_uninstalls_baoyu_cover_image_with_apm_for_codex() {
         .output()
         .expect("run APM audit");
     assert_success(audit, "apm audit");
+
+    update_project_skill(&adapter, BAOYU_COVER_IMAGE_REF, workspace.path())
+        .expect("update APM Skill");
+    assert!(installed_skill.is_file(), "{installed_skill:?} is missing");
 
     uninstall_project_skill(&adapter, BAOYU_COVER_IMAGE_REF, workspace.path())
         .expect("uninstall APM Skill");

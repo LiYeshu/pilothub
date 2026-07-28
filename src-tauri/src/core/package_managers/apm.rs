@@ -98,6 +98,58 @@ pub fn uninstall_project_skill(
     bail!("Microsoft APM uninstall failed:\n{detail}");
 }
 
+pub fn update_project_skill(
+    adapter: &ApmAdapter,
+    package: &str,
+    project_root: &Path,
+) -> Result<()> {
+    let dependency = apm_update_dependency_name(package)?;
+    let context = PackageManagerContext {
+        working_dir: project_root.to_path_buf(),
+        scope: PackageManagerScope::Project,
+        targets: Vec::new(),
+    };
+    let command = adapter.update(Some(&dependency), true, &context)?;
+    let output = Command::new(&command.program)
+        .args(&command.args)
+        .current_dir(&command.working_dir)
+        .env("APM_NON_INTERACTIVE", "1")
+        .output()
+        .with_context(|| format!("run Microsoft APM from {:?}", command.program))?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let detail = [stdout, stderr]
+        .into_iter()
+        .filter(|message| !message.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if detail.is_empty() {
+        bail!(
+            "Microsoft APM update failed with exit code {}",
+            output.status.code().unwrap_or(-1)
+        );
+    }
+    bail!("Microsoft APM update failed:\n{detail}");
+}
+
+fn apm_update_dependency_name(package: &str) -> Result<String> {
+    let segments = package
+        .trim()
+        .trim_matches('/')
+        .split('/')
+        .collect::<Vec<_>>();
+    if segments.len() < 3 || segments.iter().any(|segment| segment.is_empty()) {
+        bail!("invalid Microsoft APM Skill package reference");
+    }
+    let repo = segments[1].to_ascii_lowercase();
+    let skill = segments[segments.len() - 1].to_ascii_lowercase();
+    Ok(format!("{repo}-{skill}"))
+}
+
 impl PackageManager for ApmAdapter {
     fn id(&self) -> &'static str {
         APM_ID
@@ -310,6 +362,28 @@ mod tests {
                 .unwrap()
                 .args,
             ["update", "microsoft/apm", "--yes"]
+        );
+    }
+
+    #[test]
+    fn package_update_builds_non_interactive_project_command() {
+        let adapter = ApmAdapter::default();
+        let context = context(PackageManagerScope::Project);
+
+        assert_eq!(
+            adapter
+                .update(Some("microsoft/apm-sample-package"), true, &context)
+                .unwrap()
+                .args,
+            ["update", "microsoft/apm-sample-package", "--yes"]
+        );
+    }
+
+    #[test]
+    fn derives_apm_update_dependency_name_from_skill_package() {
+        assert_eq!(
+            apm_update_dependency_name("JimLiu/baoyu-skills/skills/baoyu-cover-image").unwrap(),
+            "baoyu-skills-baoyu-cover-image"
         );
     }
 

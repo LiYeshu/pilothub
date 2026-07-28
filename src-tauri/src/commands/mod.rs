@@ -35,11 +35,9 @@ use crate::core::network_proxy::{
     set_github_proxy_url as set_github_proxy_url_core, GithubProxyConfig,
 };
 use crate::core::onboarding::{build_onboarding_plan, OnboardingPlan};
-use crate::core::package_managers::apm::{
-    github_skill_package_reference, uninstall_project_skill, ApmAdapter,
-};
+use crate::core::package_managers::apm::{github_skill_package_reference, uninstall_project_skill};
 use crate::core::package_managers::runtime::{
-    find_managed_apm, install_latest_apm, managed_apm_root,
+    install_latest_apm, managed_apm_root, resolve_apm_adapter,
 };
 use crate::core::package_managers::PackageManager;
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
@@ -465,22 +463,6 @@ fn detect_apm_status() -> anyhow::Result<PackageManagerStatusDto> {
         version: None,
         source: None,
     })
-}
-
-fn resolve_apm_adapter() -> anyhow::Result<Option<(ApmAdapter, &'static str)>> {
-    let system_adapter = ApmAdapter::default();
-    if system_adapter.availability().available {
-        return Ok(Some((system_adapter, "system")));
-    }
-
-    let home = dirs::home_dir().context("failed to resolve home directory")?;
-    if let Some(runtime) = find_managed_apm(&managed_apm_root(&home))? {
-        let adapter = runtime.adapter();
-        if adapter.availability().available {
-            return Ok(Some((adapter, "managed")));
-        }
-    }
-    Ok(None)
 }
 
 #[tauri::command]
