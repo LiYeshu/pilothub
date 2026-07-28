@@ -11,6 +11,7 @@ import './figma.css'
 import { useTranslation } from 'react-i18next'
 import { Toaster, toast } from 'sonner'
 import ExplorePage from './components/skills/ExplorePage'
+import ExtensionsPage from './components/skills/ExtensionsPage'
 import FilterBar from './components/skills/FilterBar'
 import SkillDetailView from './components/skills/SkillDetailView'
 import Header from './components/skills/Header'
@@ -51,6 +52,7 @@ import {
 } from './components/skills/installScope'
 import type {
   AutoUpdateConfigDto,
+  Extension,
   FeaturedSkillDto,
   GitSkillCandidate,
   GithubProxyConfigDto,
@@ -76,7 +78,13 @@ type SkillScopeState = Record<
   }
 >
 
-type ActiveView = 'myskills' | 'explore' | 'detail' | 'settings' | 'manage'
+type ActiveView =
+  | 'extensions'
+  | 'myskills'
+  | 'explore'
+  | 'detail'
+  | 'settings'
+  | 'manage'
 type ManagementTab = 'tags' | 'tools' | 'updates'
 function App() {
   const { t, i18n } = useTranslation()
@@ -109,6 +117,7 @@ function App() {
     null,
   )
   const [managedSkills, setManagedSkills] = useState<ManagedSkill[]>([])
+  const [extensions, setExtensions] = useState<Extension[]>([])
   const [localPath, setLocalPath] = useState('')
   const [localName, setLocalName] = useState('')
   const [gitUrl, setGitUrl] = useState('')
@@ -159,6 +168,9 @@ function App() {
   const [activeView, setActiveView] = useState<ActiveView>('myskills')
   const [managementTab, setManagementTab] = useState<ManagementTab>('tags')
   const [detailSkill, setDetailSkill] = useState<ManagedSkill | null>(null)
+  const [detailReturnView, setDetailReturnView] = useState<
+    'extensions' | 'myskills'
+  >('myskills')
   const [tags, setTags] = useState<TagWithCountDto[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [includeUntagged, setIncludeUntagged] = useState(false)
@@ -377,8 +389,12 @@ function App() {
 
   const loadManagedSkills = useCallback(async () => {
     try {
-      const result = await invokeTauri<ManagedSkill[]>('get_managed_skills')
-      setManagedSkills(result)
+      const [skillsResult, extensionsResult] = await Promise.all([
+        invokeTauri<ManagedSkill[]>('get_managed_skills'),
+        invokeTauri<Extension[]>('get_extensions'),
+      ])
+      setManagedSkills(skillsResult)
+      setExtensions(extensionsResult)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -1275,7 +1291,7 @@ function App() {
   }, [featuredSkills.length, invokeTauri])
 
   const handleViewChange = useCallback(
-    (view: 'myskills' | 'explore' | 'manage') => {
+    (view: 'extensions' | 'myskills' | 'explore' | 'manage') => {
       setShowAddModal(false)
       setActiveView(view)
       if (view !== 'myskills') {
@@ -1291,7 +1307,7 @@ function App() {
       if (view === 'manage') {
         setManagementTab('tags')
       }
-      if (view === 'myskills') {
+      if (view === 'myskills' || view === 'extensions') {
         setDetailSkill(null)
       }
     },
@@ -1302,13 +1318,20 @@ function App() {
     setBulkMode(false)
     setBulkSelectedIds([])
     setDetailSkill(skill)
+    setDetailReturnView('myskills')
+    setActiveView('detail')
+  }, [])
+
+  const handleOpenExtensionSkill = useCallback((skill: ManagedSkill) => {
+    setDetailSkill(skill)
+    setDetailReturnView('extensions')
     setActiveView('detail')
   }, [])
 
   const handleBackToList = useCallback(() => {
     setDetailSkill(null)
-    setActiveView('myskills')
-  }, [])
+    setActiveView(detailReturnView)
+  }, [detailReturnView])
 
   const handleExploreFilterChange = useCallback(
     (value: string) => {
@@ -3487,7 +3510,9 @@ function App() {
 
       <Header
         activeView={activeView}
+        detailParent={detailReturnView}
         managementTab={managementTab}
+        extensionCount={extensions.length}
         skillCount={managedSkills.length}
         tagCount={tags.length}
         toolCount={toolStatus?.tools.length ?? 0}
@@ -3509,6 +3534,13 @@ function App() {
             onBack={handleBackToList}
             invokeTauri={invokeTauri}
             formatRelative={formatRelative}
+            t={t}
+          />
+        ) : activeView === 'extensions' ? (
+          <ExtensionsPage
+            extensions={extensions}
+            managedSkills={managedSkills}
+            onOpenSkill={handleOpenExtensionSkill}
             t={t}
           />
         ) : activeView === 'myskills' ? (
