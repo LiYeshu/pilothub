@@ -4,7 +4,11 @@
 
 ## [Unreleased]
 
+## [0.9.0-alpha.1] - 2026-07-28
+
 ### 新增
+- **PilotHub 品牌与产品定位**：应用名称、桌面元数据、界面文案和本地存储均已切换到 PilotHub。
+- **Extensions 集合视图**：按来源聚合已安装 Skills，并展示集合健康状态、Agent 目标、安装范围和 Skill 明细。
 - **Microsoft APM 托管运行时**：PilotHub 可下载并校验官方 APM 运行时，并优先复用可用的系统安装。
 - **APM Skill 安装**：GitHub Skill Collection 可预览并将单个 Skill 安装到 Codex 项目。
 - **APM 生命周期管理**：APM 管理的 Skill 支持指定依赖更新与一致卸载，失败时保留 PilotHub 记录并返回完整诊断。
