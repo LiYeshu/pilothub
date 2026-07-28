@@ -4874,3 +4874,14 @@
     flex-direction: column;
   }
 }
+.apm-preview-details {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.apm-preview-details strong {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-weight: 500;
+}

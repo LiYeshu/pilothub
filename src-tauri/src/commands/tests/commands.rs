@@ -44,6 +44,32 @@ fn expand_home_path_empty_is_error() {
 }
 
 #[test]
+fn builds_github_skill_package_reference_for_apm() {
+    assert_eq!(
+        github_skill_package_reference(
+            "https://github.com/JimLiu/baoyu-skills.git",
+            "skills/baoyu-cover-image",
+        )
+        .unwrap(),
+        "https://github.com/JimLiu/baoyu-skills/skills/baoyu-cover-image"
+    );
+}
+
+#[test]
+fn rejects_unsafe_or_non_root_apm_package_references() {
+    assert!(github_skill_package_reference(
+        "https://github.com/JimLiu/baoyu-skills/tree/main",
+        "skills/baoyu-cover-image",
+    )
+    .is_err());
+    assert!(github_skill_package_reference(
+        "https://github.com/JimLiu/baoyu-skills",
+        "../baoyu-cover-image",
+    )
+    .is_err());
+}
+
+#[test]
 fn saving_custom_tool_config_creates_enabled_skills_dir() {
     let (dir, store) = make_store();
     let existing = dir.path().join("existing-skills");

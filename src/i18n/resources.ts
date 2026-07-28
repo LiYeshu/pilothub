@@ -263,6 +263,17 @@ export const resources = {
       installTargetSummary: '{{scope}} · {{count}} tools',
       installDetectionHint:
         'Single-skill sources install directly. Multi-skill sources open a selection step first.',
+      apmInstall: {
+        preview: 'Preview APM install',
+        previewHelp: 'PilotHub will run this command in the selected project: ',
+        target: 'Target: ',
+        projectRequired: 'APM installation requires exactly one project.',
+        singleSkill: 'Select one Skill for the APM beta.',
+        scanning: 'Scanning repository for APM installation...',
+        install: 'Install with APM',
+        installing: 'Installing {{name}} with APM...',
+        success: '"{{name}}" installed with APM for Codex',
+      },
       installScope: {
         title: 'Install scope',
         unsupportedTool: '{{tool}} does not support project installation.',
@@ -970,6 +981,17 @@ export const resources = {
       installTargetSummary: '{{scope}} · {{count}} 个工具',
       installDetectionHint:
         '单个 Skill 将直接安装；检测到多个 Skills 时会先进入选择步骤。',
+      apmInstall: {
+        preview: '预览 APM 安装',
+        previewHelp: 'PilotHub 将在所选项目中执行：',
+        target: '目标目录：',
+        projectRequired: 'APM 安装必须且只能选择一个项目。',
+        singleSkill: 'APM Beta 每次只能选择一个 Skill。',
+        scanning: '正在扫描仓库以准备 APM 安装...',
+        install: '使用 APM 安装',
+        installing: '正在使用 APM 安装 {{name}}...',
+        success: '已使用 APM 为 Codex 安装“{{name}}”',
+      },
       installScope: {
         title: '范围',
         unsupportedTool: '{{tool}} 不支持项目安装。',

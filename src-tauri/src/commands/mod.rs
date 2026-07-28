@@ -445,39 +445,40 @@ pub async fn get_package_manager_status() -> Result<Vec<PackageManagerStatusDto>
 }
 
 fn detect_apm_status() -> anyhow::Result<PackageManagerStatusDto> {
-    let system_adapter = ApmAdapter::default();
-    let system_availability = system_adapter.availability();
-    if system_availability.available {
+    if let Some((adapter, source)) = resolve_apm_adapter()? {
+        let availability = adapter.availability();
         return Ok(PackageManagerStatusDto {
-            id: system_adapter.id().to_string(),
+            id: adapter.id().to_string(),
             label: "Microsoft APM".to_string(),
             available: true,
-            version: system_availability.version,
-            source: Some("system".to_string()),
+            version: availability.version,
+            source: Some(source.to_string()),
         });
     }
 
-    let home = dirs::home_dir().context("failed to resolve home directory")?;
-    if let Some(runtime) = find_managed_apm(&managed_apm_root(&home))? {
-        let availability = runtime.adapter().availability();
-        if availability.available {
-            return Ok(PackageManagerStatusDto {
-                id: system_adapter.id().to_string(),
-                label: "Microsoft APM".to_string(),
-                available: true,
-                version: availability.version.or(Some(runtime.version)),
-                source: Some("managed".to_string()),
-            });
-        }
-    }
-
     Ok(PackageManagerStatusDto {
-        id: system_adapter.id().to_string(),
+        id: "apm".to_string(),
         label: "Microsoft APM".to_string(),
         available: false,
         version: None,
         source: None,
     })
+}
+
+fn resolve_apm_adapter() -> anyhow::Result<Option<(ApmAdapter, &'static str)>> {
+    let system_adapter = ApmAdapter::default();
+    if system_adapter.availability().available {
+        return Ok(Some((system_adapter, "system")));
+    }
+
+    let home = dirs::home_dir().context("failed to resolve home directory")?;
+    if let Some(runtime) = find_managed_apm(&managed_apm_root(&home))? {
+        let adapter = runtime.adapter();
+        if adapter.availability().available {
+            return Ok(Some((adapter, "managed")));
+        }
+    }
+    Ok(None)
 }
 
 #[tauri::command]
@@ -1019,6 +1020,124 @@ pub async fn install_git_selection(
     .await
     .map_err(|err| err.to_string())?
     .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn install_git_selection_with_apm(
+    app: tauri::AppHandle,
+    store: State<'_, SkillStore>,
+    repoUrl: String,
+    subpath: String,
+    name: Option<String>,
+    projectPath: String,
+) -> Result<InstallResultDto, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let project_root = expand_home_path(&projectPath)?;
+        if !project_root.is_dir() {
+            anyhow::bail!(
+                "projectPath must be an existing directory: {:?}",
+                project_root
+            );
+        }
+        let package = github_skill_package_reference(&repoUrl, &subpath)?;
+        let (adapter, _) = resolve_apm_adapter()?
+            .ok_or_else(|| anyhow::anyhow!("Microsoft APM is not available"))?;
+        let context = crate::core::package_managers::PackageManagerContext {
+            working_dir: project_root.clone(),
+            scope: crate::core::package_managers::PackageManagerScope::Project,
+            targets: vec!["codex".to_string()],
+        };
+        let command = adapter.install(&package, &context)?;
+        let result = install_git_skill_from_selection(&app, &store, &repoUrl, &subpath, name)?;
+
+        let install_output = std::process::Command::new(&command.program)
+            .args(&command.args)
+            .current_dir(&command.working_dir)
+            .env("APM_NON_INTERACTIVE", "1")
+            .output()
+            .with_context(|| format!("run Microsoft APM from {:?}", command.program));
+        let output = match install_output {
+            Ok(output) if output.status.success() => output,
+            Ok(output) => {
+                rollback_apm_skill_import(&store, &result);
+                let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                anyhow::bail!(
+                    "Microsoft APM install failed{}",
+                    if detail.is_empty() {
+                        format!(" with status {}", output.status)
+                    } else {
+                        format!(": {detail}")
+                    }
+                );
+            }
+            Err(error) => {
+                rollback_apm_skill_import(&store, &result);
+                return Err(error);
+            }
+        };
+        drop(output);
+
+        let target = project_root.join(".agents/skills").join(&result.name);
+        if !target.is_dir() {
+            rollback_apm_skill_import(&store, &result);
+            anyhow::bail!(
+                "Microsoft APM did not create expected Skill target {:?}",
+                target
+            );
+        }
+        store.upsert_skill_target(&SkillTargetRecord {
+            id: Uuid::new_v4().to_string(),
+            skill_id: result.skill_id.clone(),
+            tool: "codex".to_string(),
+            scope: "project".to_string(),
+            project_path: Some(project_root.to_string_lossy().to_string()),
+            target_path: target.to_string_lossy().to_string(),
+            mode: "apm".to_string(),
+            status: "ok".to_string(),
+            last_error: None,
+            synced_at: Some(now_ms()),
+        })?;
+
+        Ok::<_, anyhow::Error>(to_install_dto(result))
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+fn github_skill_package_reference(repo_url: &str, subpath: &str) -> anyhow::Result<String> {
+    let repo_url = repo_url.trim().trim_end_matches('/');
+    let path = subpath.trim().trim_matches('/');
+    if repo_url.contains("/tree/") || repo_url.contains("/blob/") {
+        anyhow::bail!("APM installation requires a GitHub repository root URL");
+    }
+    let repo = repo_url
+        .strip_prefix("https://github.com/")
+        .context("APM installation currently supports HTTPS GitHub URLs only")?
+        .trim_end_matches(".git");
+    let segments = repo.split('/').collect::<Vec<_>>();
+    if segments.len() != 2 || segments.iter().any(|segment| segment.is_empty()) {
+        anyhow::bail!("invalid GitHub repository URL");
+    }
+    if path.is_empty()
+        || std::path::Path::new(path)
+            .components()
+            .any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        anyhow::bail!("invalid Skill subpath");
+    }
+    Ok(format!(
+        "https://github.com/{}/{}",
+        repo.trim_end_matches('/'),
+        path
+    ))
+}
+
+fn rollback_apm_skill_import(store: &SkillStore, result: &InstallResult) {
+    let _ = std::fs::remove_dir_all(&result.central_path);
+    let _ = store.delete_skill(&result.skill_id);
 }
 
 #[derive(Debug, Serialize)]

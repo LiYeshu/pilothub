@@ -37,6 +37,7 @@ type AddSkillModalProps = {
   onInstallProjectsChange: (projects: SetStateAction<string[]>) => void
   onPickProject: () => Promise<string | undefined>
   onSubmit: () => void
+  onPreviewApm: () => void
   t: TFunction
 }
 
@@ -66,6 +67,7 @@ const AddSkillModal = ({
   onInstallProjectsChange,
   onPickProject,
   onSubmit,
+  onPreviewApm,
   t,
 }: AddSkillModalProps) => {
   if (!open) return null
@@ -73,6 +75,7 @@ const AddSkillModal = ({
   const projectRequired =
     installScope === 'project' &&
     normalizeProjectPaths(installProjects).length === 0
+  const projectCount = normalizeProjectPaths(installProjects).length
   const unsupportedTools = getUnsupportedToolsForScope(
     installedTools,
     installScope,
@@ -323,6 +326,21 @@ const AddSkillModal = ({
                 >
                   {t('cancel')}
                 </button>
+                {addModalTab === 'git' ? (
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={onPreviewApm}
+                    disabled={loading || projectRequired || projectCount !== 1}
+                    title={
+                      installScope !== 'project' || projectCount !== 1
+                        ? t('apmInstall.projectRequired')
+                        : undefined
+                    }
+                  >
+                    {t('apmInstall.preview')}
+                  </button>
+                ) : null}
                 <button
                   className="btn btn-primary"
                   onClick={onSubmit}
