@@ -282,12 +282,12 @@ jobs:
             exit 1
           fi
 
-          NEW_TAR_GZ="Skills-Hub-${VERSION}-macOS-${ARCH}.tar.gz"
+          NEW_TAR_GZ="PilotHub-${VERSION}-macOS-${ARCH}.tar.gz"
           cp "${TAR_GZ}" "release-assets/${NEW_TAR_GZ}"
           cp "${TAR_GZ}.sig" "release-assets/${NEW_TAR_GZ}.sig"
 
           if [ -n "${DMG}" ]; then
-            NEW_DMG="Skills-Hub-${VERSION}-macOS-${ARCH}.dmg"
+            NEW_DMG="PilotHub-${VERSION}-macOS-${ARCH}.dmg"
             cp "${DMG}" "release-assets/${NEW_DMG}"
           else
             echo "⚠️ 未找到 macOS .dmg（可选）" >&2
@@ -334,7 +334,7 @@ jobs:
             exit 1
           fi
 
-          NEW_EXE="Skills-Hub-${VERSION}-Windows-${ARCH}.exe"
+          NEW_EXE="PilotHub-${VERSION}-Windows-${ARCH}.exe"
           cp "${EXE}" "release-assets/${NEW_EXE}"
           cp "${EXE}.sig" "release-assets/${NEW_EXE}.sig"
 
