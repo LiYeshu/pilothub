@@ -15,6 +15,8 @@ use super::github_download::{
     download_github_directory, parse_github_api_params, GithubDownloadOptions,
 };
 use super::network_proxy::get_github_proxy_url;
+use super::package_managers::apm::{github_skill_package_reference, update_project_skill};
+use super::package_managers::runtime::resolve_apm_adapter;
 use super::skill_store::{SkillRecord, SkillStore};
 use super::sync_engine::copy_dir_recursive;
 use super::sync_engine::sync_dir_copy_with_overwrite;
@@ -654,6 +656,8 @@ pub fn update_managed_skill_from_source<R: tauri::Runtime>(
         .get_skill_by_id(skill_id)?
         .ok_or_else(|| anyhow::anyhow!("skill not found"))?;
 
+    update_apm_targets(store, &record)?;
+
     let central_path = PathBuf::from(record.central_path.clone());
     if !central_path.exists() {
         anyhow::bail!("central path not found: {:?}", central_path);
@@ -842,6 +846,51 @@ pub fn update_managed_skill_from_source<R: tauri::Runtime>(
         source_revision: new_revision,
         updated_targets,
     })
+}
+
+fn update_apm_targets(store: &SkillStore, skill: &SkillRecord) -> Result<()> {
+    let targets = store.list_skill_targets(&skill.id)?;
+    let apm_targets = targets
+        .iter()
+        .filter(|target| target.mode == "apm" && target.status != "disabled")
+        .collect::<Vec<_>>();
+    if apm_targets.is_empty() {
+        return Ok(());
+    }
+
+    let source_ref = skill
+        .source_ref
+        .as_deref()
+        .context("Microsoft APM managed Skill is missing source URL")?;
+    let source_subpath = skill
+        .source_subpath
+        .as_deref()
+        .context("Microsoft APM managed Skill is missing source subpath")?;
+    let package = github_skill_package_reference(source_ref, source_subpath)?;
+    let (adapter, _) =
+        resolve_apm_adapter()?.ok_or_else(|| anyhow::anyhow!("Microsoft APM is not available"))?;
+    let mut updated_projects = std::collections::HashSet::new();
+    for target in apm_targets {
+        if target.scope != "project" {
+            anyhow::bail!("Microsoft APM update currently supports project scope only");
+        }
+        let project_path = target
+            .project_path
+            .as_deref()
+            .context("Microsoft APM target is missing project path")?;
+        if !updated_projects.insert(project_path.to_string()) {
+            continue;
+        }
+        let project_root = PathBuf::from(project_path);
+        if !project_root.is_dir() {
+            anyhow::bail!(
+                "Microsoft APM project directory no longer exists: {:?}",
+                project_root
+            );
+        }
+        update_project_skill(&adapter, &package, &project_root)?;
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

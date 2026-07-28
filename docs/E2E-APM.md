@@ -11,6 +11,8 @@ user directories.
 - Target: `codex`
 - Deployed Skill: `.agents/skills/baoyu-cover-image/SKILL.md`
 - Integrity gate: `apm audit --ci --no-policy --format json`
+- Lifecycle: install → audit → targeted update → uninstall
+- Cleanup gate: the deployed Skill and its `apm.yml` dependency are removed
 
 Use the virtual subdirectory reference above instead of installing the full
 repository with `--skill baoyu-cover-image`. The full repository contains
@@ -27,10 +29,12 @@ pass the executable path explicitly:
 ```bash
 PILOTHUB_APM_E2E_BINARY=/absolute/path/to/apm \
   cargo test --manifest-path src-tauri/Cargo.toml \
-  installs_baoyu_cover_image_with_apm_for_codex \
-  -- --ignored --nocapture
+  core::e2e_apm::installs_and_uninstalls_baoyu_cover_image_with_apm_for_codex \
+  -- --ignored --exact --nocapture
 ```
 
 The test builds the install command through `ApmAdapter`, installs into a
-`tempfile` workspace, verifies the deployed Skill and lockfile, and then runs
-the APM CI audit.
+`tempfile` workspace, verifies the deployed Skill and lockfile, runs the APM CI
+audit, updates only the selected dependency, and uninstalls it. The final checks
+verify that the Skill directory is gone and the dependency no longer appears in
+`apm.yml`.

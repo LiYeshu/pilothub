@@ -1,6 +1,8 @@
 use std::process::{Command, Output};
 
-use crate::core::package_managers::apm::ApmAdapter;
+use crate::core::package_managers::apm::{
+    uninstall_project_skill, update_project_skill, ApmAdapter,
+};
 use crate::core::package_managers::{
     PackageManager, PackageManagerCommand, PackageManagerContext, PackageManagerScope,
 };
@@ -9,7 +11,7 @@ const BAOYU_COVER_IMAGE_REF: &str = "JimLiu/baoyu-skills/skills/baoyu-cover-imag
 
 #[test]
 #[ignore = "downloads baoyu-skills and executes an external APM binary"]
-fn installs_baoyu_cover_image_with_apm_for_codex() {
+fn installs_and_uninstalls_baoyu_cover_image_with_apm_for_codex() {
     let binary = std::env::var("PILOTHUB_APM_E2E_BINARY")
         .expect("set PILOTHUB_APM_E2E_BINARY to an APM executable");
     let workspace = tempfile::tempdir().expect("create isolated APM workspace");
@@ -44,6 +46,20 @@ fn installs_baoyu_cover_image_with_apm_for_codex() {
         .output()
         .expect("run APM audit");
     assert_success(audit, "apm audit");
+
+    update_project_skill(&adapter, BAOYU_COVER_IMAGE_REF, workspace.path())
+        .expect("update APM Skill");
+    assert!(installed_skill.is_file(), "{installed_skill:?} is missing");
+
+    uninstall_project_skill(&adapter, BAOYU_COVER_IMAGE_REF, workspace.path())
+        .expect("uninstall APM Skill");
+    assert!(!workspace
+        .path()
+        .join(".agents/skills/baoyu-cover-image")
+        .exists());
+    let manifest =
+        std::fs::read_to_string(workspace.path().join("apm.yml")).expect("read APM manifest");
+    assert!(!manifest.contains("jimliu/baoyu-skills/skills/baoyu-cover-image"));
 }
 
 fn run_adapter_command(command: &PackageManagerCommand) -> Output {
