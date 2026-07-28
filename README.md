@@ -16,7 +16,9 @@ Use it in Claude Code and Codex
 
 ## Project status
 
-PilotHub currently uses the verified Skills Hub v0.8.0 codebase. The repository has completed its upstream baseline and product rebrand. The storage migration is implemented in PR-003.
+PilotHub `0.9.0-alpha.1` is the first Alpha built on the verified Skills Hub
+v0.8.0 baseline. The repository has completed its upstream baseline, product
+rebrand, and storage migration.
 
 Current implementation:
 
@@ -28,6 +30,7 @@ Current implementation:
 - SQLite-backed Skill and target records
 - Managed Microsoft APM runtime installation and health detection
 - Project-scoped APM Skill installation, targeted updates, and consistent uninstall
+- Extension collections grouped by source, with health, Agent targets, and scope summaries
 
 Planned PilotHub capabilities:
 
@@ -38,9 +41,10 @@ Planned PilotHub capabilities:
 - Hooks
 - Additional package-manager adapters
 
-The existing `Skill` model remains the core object during the MVP. The native
-and Microsoft APM installation paths have passed end-to-end verification. The
-project will add a broader `Extension` model in a later phase.
+The existing `Skill` model remains the persisted core object during the Alpha.
+The native and Microsoft APM installation paths have passed end-to-end
+verification. PilotHub currently presents installed Skills as source-grouped
+Extension collections without changing the SQLite schema.
 
 ## Architecture
 
