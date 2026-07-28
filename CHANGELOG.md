@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0-alpha.1] - 2026-07-28
+
+### Added
+- **PilotHub product identity**: Renamed the desktop app, metadata, interface copy, and local storage for PilotHub as an AI Agent extension manager.
+- **Extension collections**: Group installed Skills by source and show collection health, Agent targets, installation scope, and Skill details.
+- **Managed Microsoft APM runtime**: Download and verify the official APM runtime while preferring a compatible system installation when available.
+- **APM Skill lifecycle**: Preview and install a selected GitHub Skill into a Codex project, update its package directly, and uninstall it without affecting unrelated Skills.
+
+### Verified
+- **External Skill path**: Installed `baoyu-cover-image` from `JimLiu/baoyu-skills` and verified discovery in Antigravity and Codex.
+- **Isolated APM lifecycle**: Verified install, audit, targeted update, and uninstall without writing to real Codex, PilotHub, or APM user directories.
+
 ## [0.8.0] - 2026-07-17
 
 ### Added
@@ -210,6 +222,7 @@ All notable changes to this project will be documented in this file.
 ### Performance
 - Git import and batch install optimizations: cached clones reduce repeated fetches; timeouts and non‑interactive git improve stability.
 
-[Unreleased]: https://github.com/qufei1993/skills-hub/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...HEAD
+[0.9.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/skills-hub-baseline-2026-07-27...v0.9.0-alpha.1
 [0.8.0]: https://github.com/qufei1993/skills-hub/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/qufei1993/skills-hub/compare/v0.7.0...v0.7.1
