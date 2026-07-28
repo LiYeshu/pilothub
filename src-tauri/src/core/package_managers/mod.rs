@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 pub mod apm;
+pub mod runtime;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PackageManagerScope {
