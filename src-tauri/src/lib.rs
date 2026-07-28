@@ -125,6 +125,7 @@ pub fn run() {
             commands::set_tool_config,
             commands::get_tool_status,
             commands::get_package_manager_status,
+            commands::install_managed_apm_runtime,
             commands::get_git_cache_cleanup_days,
             commands::get_git_cache_ttl_secs,
             commands::set_git_cache_cleanup_days,

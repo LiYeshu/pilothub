@@ -148,6 +148,7 @@ export type PackageManagerStatusDto = {
   label: string
   available: boolean
   version?: string | null
+  source?: 'system' | 'managed' | null
 }
 
 export type CustomToolConfigDto = {
