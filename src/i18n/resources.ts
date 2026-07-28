@@ -81,6 +81,14 @@ export const resources = {
         available: 'Available',
         unavailable: 'Not detected',
         versionUnknown: 'Version unknown',
+        install: 'Install APM',
+        installing: 'Installing APM...',
+        installSuccess: 'Microsoft APM installed',
+        installFailed: 'Failed to install Microsoft APM',
+        source: {
+          system: 'System',
+          managed: 'PilotHub managed',
+        },
       },
       appVersion: 'App version',
       projectLink: {
@@ -781,6 +789,14 @@ export const resources = {
         available: '可用',
         unavailable: '未检测到',
         versionUnknown: '版本未知',
+        install: '安装 APM',
+        installing: '正在安装 APM...',
+        installSuccess: 'Microsoft APM 已安装',
+        installFailed: 'Microsoft APM 安装失败',
+        source: {
+          system: '系统',
+          managed: 'PilotHub 托管',
+        },
       },
       appVersion: '应用版本',
       projectLink: {

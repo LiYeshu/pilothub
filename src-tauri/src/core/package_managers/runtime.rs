@@ -42,6 +42,19 @@ pub fn managed_apm_root(home: &Path) -> PathBuf {
     home.join(".pilothub/package-managers/apm")
 }
 
+pub fn find_managed_apm(root: &Path) -> Result<Option<ManagedApmRuntime>> {
+    let current_path = root.join("current");
+    let version = match fs::read_to_string(&current_path) {
+        Ok(version) => version.trim().to_string(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(error).with_context(|| format!("read APM runtime marker {current_path:?}"))
+        }
+    };
+    validate_version(&version)?;
+    find_runtime(&version, &root.join(&version)).map(Some)
+}
+
 pub fn install_latest_apm(proxy_url: &str, root: &Path) -> Result<ManagedApmRuntime> {
     let client = github_http_client(proxy_url, Some(60))?;
     let release = fetch_latest_release(&client)?;
@@ -120,13 +133,15 @@ fn install_apm_archive(
 
     let install_dir = root.join(version);
     if install_dir.exists() {
-        return find_runtime(version, &install_dir);
+        let runtime = find_runtime(version, &install_dir)?;
+        write_current_version(root, version)?;
+        return Ok(runtime);
     }
 
     let staging = root.join(format!(".staging-{}", Uuid::new_v4()));
     fs::create_dir(&staging)
         .with_context(|| format!("create APM staging directory {staging:?}"))?;
-    let result = (|| {
+    let result: Result<ManagedApmRuntime> = (|| {
         extract_archive(archive_name, archive, &staging)?;
         let staged = find_runtime(version, &staging)?;
         let relative_binary = staged
@@ -144,7 +159,21 @@ fn install_apm_archive(
     if result.is_err() {
         let _ = fs::remove_dir_all(&staging);
     }
-    result
+    let runtime = result?;
+    write_current_version(root, version)?;
+    Ok(runtime)
+}
+
+fn write_current_version(root: &Path, version: &str) -> Result<()> {
+    let marker = root.join("current");
+    let staging = root.join(format!(".current-{}", Uuid::new_v4()));
+    fs::write(&staging, version)
+        .with_context(|| format!("write APM runtime marker {staging:?}"))?;
+    if marker.exists() {
+        fs::remove_file(&marker)
+            .with_context(|| format!("replace APM runtime marker {marker:?}"))?;
+    }
+    fs::rename(&staging, &marker).with_context(|| format!("activate APM runtime marker {marker:?}"))
 }
 
 fn validate_version(version: &str) -> Result<()> {
@@ -310,12 +339,23 @@ mod tests {
             install_apm_archive("v1.2.3", "apm.tar.gz", &archive, &checksum, root.path()).unwrap();
 
         assert_eq!(runtime.version, "v1.2.3");
-        assert_eq!(fs::read(runtime.binary_path).unwrap(), b"binary");
+        assert_eq!(fs::read(&runtime.binary_path).unwrap(), b"binary");
+        assert_eq!(
+            fs::read_to_string(root.path().join("current")).unwrap(),
+            "v1.2.3"
+        );
+        assert_eq!(find_managed_apm(root.path()).unwrap(), Some(runtime));
         assert!(!root.path().read_dir().unwrap().any(|entry| entry
             .unwrap()
             .file_name()
             .to_string_lossy()
             .starts_with(".staging-")));
+    }
+
+    #[test]
+    fn returns_none_without_active_runtime_marker() {
+        let root = tempfile::tempdir().unwrap();
+        assert_eq!(find_managed_apm(root.path()).unwrap(), None);
     }
 
     #[test]

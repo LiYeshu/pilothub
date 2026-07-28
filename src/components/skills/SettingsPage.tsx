@@ -72,6 +72,7 @@ const SettingsPage = ({
   const [appVersion, setAppVersion] = useState<string | null>(null)
   const [packageManagers, setPackageManagers] = useState<PackageManagerStatusDto[]>([])
   const [packageManagersLoading, setPackageManagersLoading] = useState(false)
+  const [packageManagerInstalling, setPackageManagerInstalling] = useState(false)
   const versionText = useMemo(() => {
     if (!isTauri) return t('notAvailable')
     if (!appVersion) return t('unknown')
@@ -96,17 +97,43 @@ const SettingsPage = ({
     void loadAppVersion()
   }, [loadAppVersion])
 
-  useEffect(() => {
+  const loadPackageManagers = useCallback(async () => {
     if (!isTauri) {
       setPackageManagers([])
       return
     }
     setPackageManagersLoading(true)
-    void invokeTauri<PackageManagerStatusDto[]>('get_package_manager_status')
-      .then(setPackageManagers)
-      .catch(() => setPackageManagers([]))
-      .finally(() => setPackageManagersLoading(false))
+    try {
+      setPackageManagers(
+        await invokeTauri<PackageManagerStatusDto[]>('get_package_manager_status'),
+      )
+    } catch {
+      setPackageManagers([])
+    } finally {
+      setPackageManagersLoading(false)
+    }
   }, [invokeTauri, isTauri])
+
+  useEffect(() => {
+    void loadPackageManagers()
+  }, [loadPackageManagers])
+
+  const handleInstallPackageManager = useCallback(async () => {
+    setPackageManagerInstalling(true)
+    try {
+      const installed = await invokeTauri<PackageManagerStatusDto>(
+        'install_managed_apm_runtime',
+      )
+      setPackageManagers([installed])
+      toast.success(t('packageManagers.installSuccess'))
+    } catch (error) {
+      toast.error(t('packageManagers.installFailed'), {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setPackageManagerInstalling(false)
+    }
+  }, [invokeTauri, t])
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -474,13 +501,25 @@ const SettingsPage = ({
                       <div className="settings-item-title">{manager.label}</div>
                       <div className="settings-item-desc mono">
                         {manager.version ?? t('packageManagers.versionUnknown')}
+                        {manager.source
+                          ? ` · ${t(`packageManagers.source.${manager.source}`)}`
+                          : ''}
                       </div>
                     </div>
-                    <span className={`badge${manager.available ? '' : ' danger'}`}>
-                      {manager.available
-                        ? t('packageManagers.available')
-                        : t('packageManagers.unavailable')}
-                    </span>
+                    {manager.available ? (
+                      <span className="badge">{t('packageManagers.available')}</span>
+                    ) : (
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        disabled={packageManagerInstalling}
+                        onClick={() => void handleInstallPackageManager()}
+                      >
+                        {packageManagerInstalling
+                          ? t('packageManagers.installing')
+                          : t('packageManagers.install')}
+                      </button>
+                    )}
                   </div>
                 ))
               )}

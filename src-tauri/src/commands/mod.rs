@@ -36,6 +36,9 @@ use crate::core::network_proxy::{
 };
 use crate::core::onboarding::{build_onboarding_plan, OnboardingPlan};
 use crate::core::package_managers::apm::ApmAdapter;
+use crate::core::package_managers::runtime::{
+    find_managed_apm, install_latest_apm, managed_apm_root,
+};
 use crate::core::package_managers::PackageManager;
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::skills_search::{
@@ -187,6 +190,7 @@ pub struct PackageManagerStatusDto {
     pub label: String,
     pub available: bool,
     pub version: Option<String>,
+    pub source: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -432,17 +436,74 @@ pub async fn get_tool_status(store: State<'_, SkillStore>) -> Result<ToolStatusD
 #[tauri::command]
 pub async fn get_package_manager_status() -> Result<Vec<PackageManagerStatusDto>, String> {
     tauri::async_runtime::spawn_blocking(|| {
-        let adapter = ApmAdapter::default();
-        let availability = adapter.availability();
-        vec![PackageManagerStatusDto {
-            id: adapter.id().to_string(),
-            label: "Microsoft APM".to_string(),
-            available: availability.available,
-            version: availability.version,
-        }]
+        let status = detect_apm_status()?;
+        Ok::<_, anyhow::Error>(vec![status])
     })
     .await
-    .map_err(|err| err.to_string())
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+fn detect_apm_status() -> anyhow::Result<PackageManagerStatusDto> {
+    let system_adapter = ApmAdapter::default();
+    let system_availability = system_adapter.availability();
+    if system_availability.available {
+        return Ok(PackageManagerStatusDto {
+            id: system_adapter.id().to_string(),
+            label: "Microsoft APM".to_string(),
+            available: true,
+            version: system_availability.version,
+            source: Some("system".to_string()),
+        });
+    }
+
+    let home = dirs::home_dir().context("failed to resolve home directory")?;
+    if let Some(runtime) = find_managed_apm(&managed_apm_root(&home))? {
+        let availability = runtime.adapter().availability();
+        if availability.available {
+            return Ok(PackageManagerStatusDto {
+                id: system_adapter.id().to_string(),
+                label: "Microsoft APM".to_string(),
+                available: true,
+                version: availability.version.or(Some(runtime.version)),
+                source: Some("managed".to_string()),
+            });
+        }
+    }
+
+    Ok(PackageManagerStatusDto {
+        id: system_adapter.id().to_string(),
+        label: "Microsoft APM".to_string(),
+        available: false,
+        version: None,
+        source: None,
+    })
+}
+
+#[tauri::command]
+pub async fn install_managed_apm_runtime(
+    store: State<'_, SkillStore>,
+) -> Result<PackageManagerStatusDto, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("failed to resolve home directory")?;
+        let proxy_url = get_github_proxy_url_core(&store)?;
+        let runtime = install_latest_apm(&proxy_url, &managed_apm_root(&home))?;
+        let availability = runtime.adapter().availability();
+        if !availability.available {
+            anyhow::bail!("installed Microsoft APM runtime failed its availability check");
+        }
+        Ok::<_, anyhow::Error>(PackageManagerStatusDto {
+            id: "apm".to_string(),
+            label: "Microsoft APM".to_string(),
+            available: availability.available,
+            version: availability.version.or(Some(runtime.version)),
+            source: Some("managed".to_string()),
+        })
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
 }
 
 #[tauri::command]
