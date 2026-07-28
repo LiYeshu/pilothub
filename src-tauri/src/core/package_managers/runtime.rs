@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::apm::ApmAdapter;
+use super::PackageManager;
 use crate::core::network_proxy::github_http_client;
 
 const APM_LATEST_RELEASE_URL: &str = "https://api.github.com/repos/microsoft/apm/releases/latest";
@@ -53,6 +54,22 @@ pub fn find_managed_apm(root: &Path) -> Result<Option<ManagedApmRuntime>> {
     };
     validate_version(&version)?;
     find_runtime(&version, &root.join(&version)).map(Some)
+}
+
+pub fn resolve_apm_adapter() -> Result<Option<(ApmAdapter, &'static str)>> {
+    let system_adapter = ApmAdapter::default();
+    if system_adapter.availability().available {
+        return Ok(Some((system_adapter, "system")));
+    }
+
+    let home = dirs::home_dir().context("failed to resolve home directory")?;
+    if let Some(runtime) = find_managed_apm(&managed_apm_root(&home))? {
+        let adapter = runtime.adapter();
+        if adapter.availability().available {
+            return Ok(Some((adapter, "managed")));
+        }
+    }
+    Ok(None)
 }
 
 pub fn install_latest_apm(proxy_url: &str, root: &Path) -> Result<ManagedApmRuntime> {
