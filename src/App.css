@@ -236,6 +236,83 @@
   font-size: 12px;
 }
 
+.extension-header-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.extension-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.extension-health.healthy {
+  color: var(--status-success);
+}
+
+.extension-health.attention {
+  color: var(--status-warning);
+}
+
+.extension-target-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-element);
+}
+
+.extension-target-label,
+.extension-scope-summary,
+.extension-no-targets {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.extension-target-label {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.extension-tool-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.extension-tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  font-size: 11px;
+}
+
+.tool-brand-icon.extension-tool-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  font-size: 8px;
+}
+
+.extension-scope-summary {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .extension-components {
   display: grid;
 }
@@ -268,10 +345,11 @@
   outline-offset: -2px;
 }
 
-.extension-component > span {
+.extension-component-copy {
   display: grid;
   gap: 4px;
   min-width: 0;
+  flex: 1;
 }
 
 .extension-component strong,
@@ -293,6 +371,29 @@
 .extension-component svg {
   flex: 0 0 auto;
   color: var(--text-tertiary);
+}
+
+.extension-component-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.extension-component-meta i {
+  padding: 3px 6px;
+  border: 1px solid var(--accent-soft-border);
+  border-radius: 999px;
+  color: var(--accent-primary);
+  background: var(--accent-soft-bg);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.extension-component-meta small {
+  color: var(--text-tertiary);
+  font-size: 11px;
 }
 
 .extensions-empty {
@@ -5001,6 +5102,19 @@
   .extension-collection-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .extension-target-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .extension-scope-summary {
+    margin-left: 0;
+  }
+
+  .extension-component-meta i {
+    display: none;
   }
 
   .settings-shell {

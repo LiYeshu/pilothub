@@ -3540,6 +3540,7 @@ function App() {
           <ExtensionsPage
             extensions={extensions}
             managedSkills={managedSkills}
+            tools={tools}
             onOpenSkill={handleOpenExtensionSkill}
             t={t}
           />
