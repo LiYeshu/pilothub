@@ -1062,15 +1062,20 @@ pub async fn install_git_selection_with_apm(
             Ok(output) if output.status.success() => output,
             Ok(output) => {
                 rollback_apm_skill_import(&store, &result);
-                let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                anyhow::bail!(
-                    "Microsoft APM install failed{}",
-                    if detail.is_empty() {
-                        format!(" with status {}", output.status)
-                    } else {
-                        format!(": {detail}")
-                    }
-                );
+                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                let detail = [stdout, stderr]
+                    .into_iter()
+                    .filter(|message| !message.is_empty())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if detail.is_empty() {
+                    anyhow::bail!(
+                        "Microsoft APM install failed with exit code {}",
+                        output.status.code().unwrap_or(-1)
+                    );
+                }
+                anyhow::bail!("Microsoft APM install failed:\n{detail}");
             }
             Err(error) => {
                 rollback_apm_skill_import(&store, &result);
@@ -1128,11 +1133,7 @@ fn github_skill_package_reference(repo_url: &str, subpath: &str) -> anyhow::Resu
     {
         anyhow::bail!("invalid Skill subpath");
     }
-    Ok(format!(
-        "https://github.com/{}/{}",
-        repo.trim_end_matches('/'),
-        path
-    ))
+    Ok(format!("{}/{}", repo.trim_end_matches('/'), path))
 }
 
 fn rollback_apm_skill_import(store: &SkillStore, result: &InstallResult) {

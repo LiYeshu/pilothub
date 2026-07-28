@@ -51,7 +51,7 @@ fn builds_github_skill_package_reference_for_apm() {
             "skills/baoyu-cover-image",
         )
         .unwrap(),
-        "https://github.com/JimLiu/baoyu-skills/skills/baoyu-cover-image"
+        "JimLiu/baoyu-skills/skills/baoyu-cover-image"
     );
 }
 

@@ -73,7 +73,10 @@ const GitPickModal = ({
 
   return (
     <div className="modal-backdrop" onClick={onRequestClose}>
-      <div className="modal pick-skill-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`modal pick-skill-modal${installer === 'apm' ? ' apm-pick-modal' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div className="modal-title">{t('gitPickTitle')}</div>
           <button

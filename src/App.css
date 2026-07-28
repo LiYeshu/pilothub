@@ -4885,3 +4885,20 @@
   color: var(--text-primary);
   font-weight: 500;
 }
+
+.apm-pick-modal .modal-body {
+  overflow-y: auto;
+}
+
+.apm-pick-modal .collection-preview,
+.apm-pick-modal .label,
+.apm-pick-modal .add-source-note,
+.apm-pick-modal .pick-search,
+.apm-pick-modal .pick-toolbar {
+  flex: 0 0 auto;
+}
+
+.apm-pick-modal .pick-list {
+  flex: 0 0 auto;
+  max-height: 320px;
+}
