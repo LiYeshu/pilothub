@@ -23,9 +23,11 @@ Current implementation:
 - Git and local Skill discovery
 - Multi-Skill repository scanning through `SKILL.md`
 - Central Skill storage
-- Claude Code and Codex adapters
+- Antigravity, Codex, and other Agent adapters
 - Symlink, junction, and copy sync modes
 - SQLite-backed Skill and target records
+- Managed Microsoft APM runtime installation and health detection
+- Project-scoped APM Skill installation, targeted updates, and consistent uninstall
 
 Planned PilotHub capabilities:
 
@@ -34,9 +36,11 @@ Planned PilotHub capabilities:
 - Agents
 - Prompts
 - Hooks
-- Package-manager adapters, starting with Microsoft APM
+- Additional package-manager adapters
 
-The existing `Skill` model remains the core object during the MVP. The project will add a broader `Extension` model after the Skill installation path passes end-to-end verification.
+The existing `Skill` model remains the core object during the MVP. The native
+and Microsoft APM installation paths have passed end-to-end verification. The
+project will add a broader `Extension` model in a later phase.
 
 ## Architecture
 
@@ -74,9 +78,11 @@ Acceptance criteria:
 
 1. PilotHub scans the repository and lists its Skills.
 2. A user selects and installs `baoyu-cover-image`.
-3. PilotHub syncs the Skill to Claude Code and Codex.
-4. Both Agents discover and run the Skill.
+3. PilotHub installs the Skill into an Agent project through Microsoft APM.
+4. Codex discovers and runs the Skill.
 5. Uninstalling it leaves unrelated Skills intact.
+
+The native adapter path has also been verified with Antigravity and Codex.
 
 ## Out of scope
 
@@ -126,6 +132,8 @@ See [UPSTREAM.md](UPSTREAM.md) for the upstream sync policy and [docs/BASELINE.m
 When PilotHub finds legacy data under `~/.skillshub`, it asks before migrating. It copies and verifies the data, updates database paths in one transaction, keeps a backup, and does not delete the legacy directory.
 
 The first external Skill verification is documented in [docs/E2E-BAOYU.md](docs/E2E-BAOYU.md).
+The isolated Microsoft APM lifecycle verification is documented in
+[docs/E2E-APM.md](docs/E2E-APM.md).
 
 ## Development
 
