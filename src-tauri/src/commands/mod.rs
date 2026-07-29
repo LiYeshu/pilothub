@@ -23,6 +23,10 @@ use crate::core::content_hash::hash_dir;
 use crate::core::extensions::{map_skills_to_extensions, Extension};
 use crate::core::featured_skills::{fetch_featured_skills, FeaturedSkill};
 use crate::core::github_search::{search_github_repos, RepoSummary};
+use crate::core::install_diagnostics::{
+    check_agent_targets, check_github_connection, check_local_skill_source, git_skill_source_check,
+    DiagnosticAgent, InstallDiagnostics,
+};
 use crate::core::installer::{
     install_git_skill, install_git_skill_from_selection, install_local_skill,
     install_local_skill_from_selection, list_local_skills, scan_git_skill_collection,
@@ -427,6 +431,46 @@ pub async fn get_tool_status(store: State<'_, SkillStore>) -> Result<ToolStatusD
             installed,
             newly_installed,
         })
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn run_install_diagnostics(
+    app: tauri::AppHandle,
+    store: State<'_, SkillStore>,
+    sourceKind: String,
+    source: String,
+    toolIds: Vec<String>,
+) -> Result<InstallDiagnostics, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let tools = runtime_tools(&store, true)?;
+        let selected = tools
+            .into_iter()
+            .filter(|tool| toolIds.is_empty() || toolIds.contains(&tool.key))
+            .map(|tool| DiagnosticAgent {
+                label: tool.label,
+                installed: tool.installed,
+                skills_dir: tool.skills_dir,
+            })
+            .collect::<Vec<_>>();
+        let proxy_url = get_github_proxy_url_core(&store)?;
+        let mut checks = vec![check_github_connection(&proxy_url)];
+        checks.extend(check_agent_targets(&selected));
+        let source_check = if sourceKind == "local" {
+            check_local_skill_source(&expand_home_path(&source)?)
+        } else {
+            let result = scan_git_skill_collection(&app, &store, &source)
+                .map(|collection| collection.skills.len())
+                .map_err(format_anyhow_error);
+            git_skill_source_check(result)
+        };
+        checks.push(source_check);
+        Ok::<_, anyhow::Error>(InstallDiagnostics { checks })
     })
     .await
     .map_err(|err| err.to_string())?

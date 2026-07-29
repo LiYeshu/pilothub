@@ -1,5 +1,5 @@
 import { memo, type SetStateAction } from 'react'
-import { Check, FolderOpen, GitBranch, Info } from 'lucide-react'
+import { Check, FolderOpen, GitBranch, Info, Stethoscope } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import ScopeSelector from '../ScopeSelector'
 import ToolIcon from '../ToolIcon'
@@ -37,6 +37,7 @@ type AddSkillModalProps = {
   onInstallProjectsChange: (projects: SetStateAction<string[]>) => void
   onPickProject: () => Promise<string | undefined>
   onSubmit: () => void
+  onDiagnose: () => void
   onPreviewApm: () => void
   t: TFunction
 }
@@ -67,6 +68,7 @@ const AddSkillModal = ({
   onInstallProjectsChange,
   onPickProject,
   onSubmit,
+  onDiagnose,
   onPreviewApm,
   t,
 }: AddSkillModalProps) => {
@@ -319,6 +321,18 @@ const AddSkillModal = ({
               </div>
 
               <div className="add-config-actions">
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={onDiagnose}
+                  disabled={
+                    loading ||
+                    !(addModalTab === 'local' ? localPath.trim() : gitUrl.trim())
+                  }
+                >
+                  <Stethoscope size={15} />
+                  {t('installDiagnostics.action')}
+                </button>
                 <button
                   className="btn btn-secondary"
                   onClick={onRequestClose}
