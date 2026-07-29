@@ -28,6 +28,7 @@ import GitPickModal from './components/skills/modals/GitPickModal'
 import LocalPickModal from './components/skills/modals/LocalPickModal'
 import ImportModal from './components/skills/modals/ImportModal'
 import InstallSuccessModal from './components/skills/modals/InstallSuccessModal'
+import InstallDiagnosticsModal from './components/skills/modals/InstallDiagnosticsModal'
 import NewToolsModal from './components/skills/modals/NewToolsModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
 import SharedDirModal from './components/skills/modals/SharedDirModal'
@@ -68,6 +69,7 @@ import type {
   GitSkillCandidate,
   GithubProxyConfigDto,
   InstallResultDto,
+  InstallDiagnosticsDto,
   LocalSkillCandidate,
   ManagedSkill,
   OnboardingPlan,
@@ -136,6 +138,12 @@ function App() {
   )
   const [installSuccess, setInstallSuccess] =
     useState<InstallSuccessState | null>(null)
+  const [showInstallDiagnostics, setShowInstallDiagnostics] = useState(false)
+  const [installDiagnosticsLoading, setInstallDiagnosticsLoading] = useState(false)
+  const [installDiagnostics, setInstallDiagnostics] =
+    useState<InstallDiagnosticsDto | null>(null)
+  const [installDiagnosticsError, setInstallDiagnosticsError] =
+    useState<string | null>(null)
   const [managedSkills, setManagedSkills] = useState<ManagedSkill[]>([])
   const [extensions, setExtensions] = useState<Extension[]>([])
   const [localPath, setLocalPath] = useState('')
@@ -2526,6 +2534,7 @@ function App() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      void handleRunInstallDiagnostics()
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2694,6 +2703,7 @@ function App() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      void handleRunInstallDiagnostics()
     } finally {
       quickInstallRequestedRef.current = false
       setLoading(false)
@@ -3558,6 +3568,39 @@ function App() {
     setInstallSuccess(null)
   }, [])
 
+  const handleRunInstallDiagnostics = async () => {
+    const sourceKind = addModalTab === 'local' ? 'local' : 'git'
+    const source = sourceKind === 'local' ? localPath.trim() : gitUrl.trim()
+    if (!source) {
+      toast.error(
+        sourceKind === 'local'
+          ? t('errors.requireLocalPath')
+          : t('errors.requireGitUrl'),
+      )
+      return
+    }
+    const toolIds = installedTools
+      .filter((tool) => syncTargets[tool.id])
+      .map((tool) => tool.id)
+    setShowInstallDiagnostics(true)
+    setInstallDiagnosticsLoading(true)
+    setInstallDiagnostics(null)
+    setInstallDiagnosticsError(null)
+    try {
+      const result = await invokeTauri<InstallDiagnosticsDto>(
+        'run_install_diagnostics',
+        { sourceKind, source, toolIds },
+      )
+      setInstallDiagnostics(result)
+    } catch (err) {
+      setInstallDiagnosticsError(formatErrorMessage(
+        err instanceof Error ? err.message : String(err),
+      ))
+    } finally {
+      setInstallDiagnosticsLoading(false)
+    }
+  }
+
   const handleViewInstalledSkill = useCallback(() => {
     if (!installSuccess) return
     const skill = managedSkills.find(
@@ -3602,6 +3645,15 @@ function App() {
         result={installSuccess}
         onClose={handleCloseInstallSuccess}
         onViewSkill={handleViewInstalledSkill}
+        t={t}
+      />
+      <InstallDiagnosticsModal
+        open={showInstallDiagnostics}
+        loading={installDiagnosticsLoading}
+        result={installDiagnostics}
+        error={installDiagnosticsError}
+        onClose={() => setShowInstallDiagnostics(false)}
+        onRetry={() => void handleRunInstallDiagnostics()}
         t={t}
       />
 
@@ -3905,6 +3957,7 @@ function App() {
         onInstallProjectsChange={handleInstallProjectsChange}
         onPickProject={handlePickProject}
         onSubmit={addModalTab === 'local' ? handleCreateLocal : handleCreateGit}
+        onDiagnose={() => void handleRunInstallDiagnostics()}
         onPreviewApm={() => void handlePreviewApmInstall()}
         t={t}
       />

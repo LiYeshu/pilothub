@@ -4936,6 +4936,109 @@
   padding: 16px 32px;
 }
 
+.diagnostics-backdrop {
+  z-index: 1200;
+}
+
+.install-diagnostics-modal {
+  width: min(620px, calc(100vw - 40px));
+}
+
+.install-diagnostics-subtitle {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.install-diagnostics-body {
+  min-height: 260px;
+}
+
+.install-diagnostics-loading {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.install-diagnostics-loading svg {
+  color: var(--accent-primary);
+}
+
+.install-diagnostics-loading strong {
+  color: var(--text-primary);
+}
+
+.install-diagnostics-loading span {
+  font-size: 12px;
+}
+
+.install-diagnostics-list {
+  display: grid;
+  gap: 8px;
+}
+
+.install-diagnostic-check,
+.install-diagnostics-error {
+  display: flex;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.install-diagnostic-check.pass .install-diagnostic-icon {
+  color: var(--status-success);
+}
+
+.install-diagnostic-check.warning .install-diagnostic-icon {
+  color: var(--status-warning);
+}
+
+.install-diagnostic-check.fail .install-diagnostic-icon,
+.install-diagnostics-error {
+  color: var(--status-error);
+}
+
+.install-diagnostic-copy,
+.install-diagnostics-error > div {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+
+.install-diagnostic-copy strong,
+.install-diagnostics-error strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.install-diagnostic-copy span,
+.install-diagnostics-error span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.install-diagnostic-copy small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.install-diagnostic-copy code {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 600px) {
   .quick-install-targets {
     grid-template-columns: 28px minmax(0, 1fr);
