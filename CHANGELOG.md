@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0-alpha.2] - 2026-07-29
+
+### Added
+- **First-launch guidance**: Introduces PilotHub through a three-step flow for discovering a capability, installing it to an Agent, and starting to use it.
+- **Quick install**: Recommended capabilities automatically detect installed Agents, select valid targets, and enter the installation flow.
+- **Installation success guidance**: Shows the installed Agent targets, project location, usage prompt, and next actions after installation.
+- **Capability cards**: Presents recommended Skills with plain-language names, use cases, categories, sources, and supported platforms.
+- **Installation diagnostics**: Checks GitHub connectivity, Agent detection, target-directory access, and Skill format with actionable recovery guidance.
+- **Local anonymous feedback**: Optionally records installation outcomes and normalized environment types. It is disabled by default, stored only on the device, and can be cleared at any time.
+
+### Changed
+- **Frozen Alpha capability boundary**: This release focuses on the journey from first launch to successful Skill use without adding MCP, Agent, Prompt, Hook, workflow, marketplace, or cloud-account support.
+- **Explicit privacy boundary**: Local feedback excludes repository URLs, Skill names, local paths, user content, project code, and raw errors, and includes no upload path.
+
+### Verified
+- **Full quality checks**: Frontend lint, unit tests, production build, Rust formatting, Clippy, and Rust unit tests all pass.
+- **Core acceptance path**: PilotHub installs and syncs `baoyu-cover-image` to Antigravity and Codex, and the Extensions page reports collection health and Agent targets.
+
 ## [0.9.0-alpha.1] - 2026-07-28
 
 ### Added
