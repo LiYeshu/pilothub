@@ -52,6 +52,10 @@ import {
   type InstallSuccessState,
 } from './components/skills/quickInstall'
 import {
+  classifyInstallFailure,
+  type ProductFeedbackFailureCode,
+} from './components/skills/productFeedback'
+import {
   buildInstallSyncJobs,
   filterTargetsForScope,
   getAddedProjectPaths,
@@ -752,6 +756,24 @@ function App() {
         .filter((tool) => syncTargets[tool.id])
         .map((tool) => tool.label),
     [installedTools, syncTargets],
+  )
+  const recordProductFeedback = useCallback(
+    (
+      eventName: 'install_start' | 'install_success' | 'install_fail',
+      sourceKind: 'github' | 'local',
+      failureCode?: ProductFeedbackFailureCode,
+    ) => {
+      const targetAgents = installedTools
+        .filter((tool) => syncTargets[tool.id])
+        .map((tool) => tool.id)
+      void invokeTauri<boolean>('record_product_feedback_event', {
+        eventName,
+        sourceKind,
+        targetAgents,
+        failureCode,
+      }).catch(() => undefined)
+    },
+    [installedTools, invokeTauri, syncTargets],
   )
   const toolSupportsProjectScope = useCallback(
     (toolId: string) =>
@@ -2485,6 +2507,7 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('actions.creatingLocalSkill'))
+    recordProductFeedback('install_start', 'local')
     try {
       const basePath = localPath.trim()
       const candidates = await invokeTauri<LocalSkillCandidate[]>(
@@ -2510,7 +2533,16 @@ function App() {
         )
         await applySelectedAddModalTags(created.skill_id, created.name)
         const syncErrors = await syncInstalledSkill(created)
-        if (syncErrors.length > 0) showActionErrors(syncErrors)
+        if (syncErrors.length > 0) {
+          showActionErrors(syncErrors)
+          recordProductFeedback(
+            'install_fail',
+            'local',
+            classifyInstallFailure(syncErrors[0].message),
+          )
+        } else {
+          recordProductFeedback('install_success', 'local')
+        }
         setLocalPath('')
         setLocalName('')
         setActionMessage(t('status.localSkillCreated'))
@@ -2533,7 +2565,13 @@ function App() {
         return
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const raw = err instanceof Error ? err.message : String(err)
+      setError(raw)
+      recordProductFeedback(
+        'install_fail',
+        'local',
+        classifyInstallFailure(raw),
+      )
       void handleRunInstallDiagnostics()
     } finally {
       setLoading(false)
@@ -2550,12 +2588,22 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('actions.creatingGitSkill'))
+    recordProductFeedback('install_start', 'github')
     setGitPickInstaller('native')
     let quickInstallResult: InstallSuccessState | null = null
     const captureQuickInstallResult = (
       created: InstallResultDto,
       syncErrors: { title: string; message: string }[],
     ) => {
+      if (syncErrors.length > 0) {
+        recordProductFeedback(
+          'install_fail',
+          'github',
+          classifyInstallFailure(syncErrors[0].message),
+        )
+      } else {
+        recordProductFeedback('install_success', 'github')
+      }
       if (!quickInstallRequestedRef.current || syncErrors.length > 0) return
       quickInstallResult = {
         skillId: created.skill_id,
@@ -2702,7 +2750,13 @@ function App() {
         setInstallSuccess(quickInstallResult)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const raw = err instanceof Error ? err.message : String(err)
+      setError(raw)
+      recordProductFeedback(
+        'install_fail',
+        'github',
+        classifyInstallFailure(raw),
+      )
       void handleRunInstallDiagnostics()
     } finally {
       quickInstallRequestedRef.current = false
@@ -2725,6 +2779,7 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('apmInstall.scanning'))
+    recordProductFeedback('install_start', 'github')
     try {
       const url = gitUrl.trim()
       const collection = await invokeTauri<SkillCollection>(
@@ -2749,7 +2804,13 @@ function App() {
       setShowGitPickModal(true)
       setActionMessage(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message)
+      recordProductFeedback(
+        'install_fail',
+        'github',
+        classifyInstallFailure(message),
+      )
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2877,7 +2938,16 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
-      if (collectedErrors.length > 0) showActionErrors(collectedErrors)
+      if (collectedErrors.length > 0) {
+        showActionErrors(collectedErrors)
+        recordProductFeedback(
+          'install_fail',
+          'local',
+          classifyInstallFailure(collectedErrors[0].message),
+        )
+      } else {
+        recordProductFeedback('install_success', 'local')
+      }
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2954,7 +3024,16 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
-      if (collectedErrors.length > 0) showActionErrors(collectedErrors)
+      if (collectedErrors.length > 0) {
+        showActionErrors(collectedErrors)
+        recordProductFeedback(
+          'install_fail',
+          'github',
+          classifyInstallFailure(collectedErrors[0].message),
+        )
+      } else {
+        recordProductFeedback('install_success', 'github')
+      }
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -3008,8 +3087,15 @@ function App() {
       await loadTags()
       setSuccessToastMessage(t('apmInstall.success', { name: created.name }))
       setActionMessage(null)
+      recordProductFeedback('install_success', 'github')
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const raw = err instanceof Error ? err.message : String(err)
+      setError(raw)
+      recordProductFeedback(
+        'install_fail',
+        'github',
+        classifyInstallFailure(raw),
+      )
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
