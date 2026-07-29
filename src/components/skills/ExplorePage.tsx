@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { Plus, Search, Star } from 'lucide-react'
+import { Bot, Plus, Search, Settings2, Star } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { FeaturedSkillDto, ManagedSkill, OnlineSkillDto } from './types'
 
@@ -11,8 +11,10 @@ type ExplorePageProps = {
   searchLoading: boolean
   managedSkills: ManagedSkill[]
   loading: boolean
+  detectedAgentLabels: string[]
   onExploreFilterChange: (value: string) => void
   onInstallSkill: (sourceUrl: string, skillName?: string) => void
+  onManageAgents: () => void
   onOpenManualAdd: (tab?: 'git' | 'local') => void
   t: TFunction
 }
@@ -31,8 +33,10 @@ const ExplorePage = ({
   searchLoading,
   managedSkills,
   loading,
+  detectedAgentLabels,
   onExploreFilterChange,
   onInstallSkill,
+  onManageAgents,
   onOpenManualAdd,
   t,
 }: ExplorePageProps) => {
@@ -113,6 +117,37 @@ const ExplorePage = ({
         <div className="explore-source-label">
           {t('exploreSourceHint')}
         </div>
+        <div
+          className={`quick-install-targets${
+            detectedAgentLabels.length === 0 ? ' warning' : ''
+          }`}
+        >
+          <Bot size={17} aria-hidden="true" />
+          <div>
+            <strong>
+              {detectedAgentLabels.length > 0
+                ? t('quickInstall.autoTargetsTitle')
+                : t('quickInstall.noAgentsTitle')}
+            </strong>
+            <span>
+              {detectedAgentLabels.length > 0
+                ? t('quickInstall.autoTargetsDescription', {
+                    targets: detectedAgentLabels.join(', '),
+                  })
+                : t('quickInstall.noAgentsDescription')}
+            </span>
+          </div>
+          {detectedAgentLabels.length === 0 ? (
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={onManageAgents}
+            >
+              <Settings2 size={14} aria-hidden="true" />
+              {t('quickInstall.manageAgents')}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="explore-scroll">
@@ -147,10 +182,10 @@ const ExplorePage = ({
                           <button
                             className="explore-btn-install"
                             type="button"
-                            disabled={loading}
+                            disabled={loading || detectedAgentLabels.length === 0}
                             onClick={() => onInstallSkill(skill.source_url)}
                           >
-                            {t('install')}
+                            {t('quickInstall.action')}
                           </button>
                         )}
                       </div>
@@ -196,10 +231,10 @@ const ExplorePage = ({
                               <button
                                 className="explore-btn-install"
                                 type="button"
-                                disabled={loading}
+                                disabled={loading || detectedAgentLabels.length === 0}
                                 onClick={() => onInstallSkill(skill.source_url, skill.name)}
                               >
-                                {t('install')}
+                                {t('quickInstall.action')}
                               </button>
                             )}
                           </div>

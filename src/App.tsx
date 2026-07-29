@@ -27,6 +27,7 @@ import EditSkillTagsModal from './components/skills/modals/EditSkillTagsModal'
 import GitPickModal from './components/skills/modals/GitPickModal'
 import LocalPickModal from './components/skills/modals/LocalPickModal'
 import ImportModal from './components/skills/modals/ImportModal'
+import InstallSuccessModal from './components/skills/modals/InstallSuccessModal'
 import NewToolsModal from './components/skills/modals/NewToolsModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
 import SharedDirModal from './components/skills/modals/SharedDirModal'
@@ -44,6 +45,11 @@ import {
   shouldShowWelcome,
   WELCOME_COMPLETED_STORAGE_KEY,
 } from './components/skills/onboardingWelcome'
+import {
+  getQuickInstallTargetLabels,
+  selectQuickInstallTools,
+  type InstallSuccessState,
+} from './components/skills/quickInstall'
 import {
   buildInstallSyncJobs,
   filterTargetsForScope,
@@ -128,6 +134,8 @@ function App() {
   const [successToastMessage, setSuccessToastMessage] = useState<string | null>(
     null,
   )
+  const [installSuccess, setInstallSuccess] =
+    useState<InstallSuccessState | null>(null)
   const [managedSkills, setManagedSkills] = useState<ManagedSkill[]>([])
   const [extensions, setExtensions] = useState<Extension[]>([])
   const [localPath, setLocalPath] = useState('')
@@ -721,6 +729,14 @@ function App() {
   const installedTools = useMemo(
     () => tools.filter((tool) => installedToolIds.includes(tool.id)),
     [tools, installedToolIds],
+  )
+  const quickInstallTools = useMemo(
+    () => selectQuickInstallTools(installedTools),
+    [installedTools],
+  )
+  const quickInstallTargetLabels = useMemo(
+    () => getQuickInstallTargetLabels(quickInstallTools),
+    [quickInstallTools],
   )
   const installPreviewTargets = useMemo(
     () =>
@@ -2526,6 +2542,18 @@ function App() {
     setError(null)
     setActionMessage(t('actions.creatingGitSkill'))
     setGitPickInstaller('native')
+    let quickInstallResult: InstallSuccessState | null = null
+    const captureQuickInstallResult = (
+      created: InstallResultDto,
+      syncErrors: { title: string; message: string }[],
+    ) => {
+      if (!quickInstallRequestedRef.current || syncErrors.length > 0) return
+      quickInstallResult = {
+        skillId: created.skill_id,
+        skillName: created.name,
+        targetLabels: installPreviewTargets,
+      }
+    }
     try {
       const url = gitUrl.trim()
       const isFolderUrl = url.includes('/tree/') || url.includes('/blob/')
@@ -2566,6 +2594,7 @@ function App() {
         )
         await applySelectedAddModalTags(created.skill_id, created.name)
         const syncErrors = await syncInstalledSkill(created)
+        captureQuickInstallResult(created, syncErrors)
         if (syncErrors.length > 0) showActionErrors(syncErrors)
       } else {
         const collection = await invokeTauri<SkillCollection>(
@@ -2591,6 +2620,7 @@ function App() {
           )
           await applySelectedAddModalTags(created.skill_id, created.name)
           const syncErrors = await syncInstalledSkill(created)
+          captureQuickInstallResult(created, syncErrors)
           if (syncErrors.length > 0) showActionErrors(syncErrors)
         } else if (autoSelectSkillName) {
           // Auto-select the matching skill from online search results.
@@ -2620,6 +2650,7 @@ function App() {
             )
             await applySelectedAddModalTags(created.skill_id, created.name)
             const syncErrors = await syncInstalledSkill(created)
+            captureQuickInstallResult(created, syncErrors)
             if (syncErrors.length > 0) showActionErrors(syncErrors)
           } else {
             // No match found, fall back to picker
@@ -2658,9 +2689,13 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
+      if (quickInstallResult) {
+        setInstallSuccess(quickInstallResult)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
+      quickInstallRequestedRef.current = false
       setLoading(false)
       setLoadingStartAt(null)
     }
@@ -2713,23 +2748,29 @@ function App() {
 
   const [exploreInstallTrigger, setExploreInstallTrigger] = useState(0)
   const exploreInstallUrlRef = useRef<string | null>(null)
+  const quickInstallRequestedRef = useRef(false)
 
   const handleExploreInstall = useCallback(
     (sourceUrl: string, skillName?: string) => {
+      if (quickInstallTools.length === 0) {
+        toast.error(t('quickInstall.noAgentsDescription'))
+        return
+      }
       resetInstallScope()
       setGitUrl(sourceUrl)
       if (skillName) setAutoSelectSkillName(skillName)
       if (toolStatus) {
         const targets: Record<string, boolean> = {}
-        for (const id of toolStatus.installed) {
-          targets[id] = true
+        for (const tool of quickInstallTools) {
+          targets[tool.id] = true
         }
         setSyncTargets(targets)
       }
+      quickInstallRequestedRef.current = true
       exploreInstallUrlRef.current = sourceUrl
       setExploreInstallTrigger((n) => n + 1)
     },
-    [resetInstallScope, toolStatus],
+    [quickInstallTools, resetInstallScope, t, toolStatus],
   )
 
   useEffect(() => {
@@ -3507,6 +3548,28 @@ function App() {
     setActiveView('manage')
   }
 
+  const handleManageAgents = useCallback(() => {
+    setShowAddModal(false)
+    setManagementTab('tools')
+    setActiveView('manage')
+  }, [])
+
+  const handleCloseInstallSuccess = useCallback(() => {
+    setInstallSuccess(null)
+  }, [])
+
+  const handleViewInstalledSkill = useCallback(() => {
+    if (!installSuccess) return
+    const skill = managedSkills.find(
+      (candidate) => candidate.id === installSuccess.skillId,
+    )
+    setInstallSuccess(null)
+    if (!skill) return
+    setDetailSkill(skill)
+    setDetailReturnView('myskills')
+    setActiveView('detail')
+  }, [installSuccess, managedSkills])
+
   return (
     <div className={`skills-app${isTauri ? ' is-tauri' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <Toaster
@@ -3533,6 +3596,12 @@ function App() {
         open={showWelcome}
         onSkip={completeWelcome}
         onStart={handleStartWelcome}
+        t={t}
+      />
+      <InstallSuccessModal
+        result={installSuccess}
+        onClose={handleCloseInstallSuccess}
+        onViewSkill={handleViewInstalledSkill}
         t={t}
       />
 
@@ -3800,8 +3869,10 @@ function App() {
             searchLoading={searchLoading}
             managedSkills={managedSkills}
             loading={loading}
+            detectedAgentLabels={quickInstallTargetLabels}
             onExploreFilterChange={handleExploreFilterChange}
             onInstallSkill={handleExploreInstall}
+            onManageAgents={handleManageAgents}
             onOpenManualAdd={handleOpenAdd}
             t={t}
           />
