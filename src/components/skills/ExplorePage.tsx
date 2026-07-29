@@ -2,6 +2,10 @@ import { memo, useMemo } from 'react'
 import { Bot, Plus, Search, Settings2, Star } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { FeaturedSkillDto, ManagedSkill, OnlineSkillDto } from './types'
+import {
+  formatSkillDisplayName,
+  formatSkillPurpose,
+} from './skillPresentation'
 
 type ExplorePageProps = {
   featuredSkills: FeaturedSkillDto[]
@@ -163,11 +167,19 @@ const ExplorePage = ({
               <div className="explore-grid">
                 {filteredSkills.map((skill) => {
                   const installed = isInstalled(skill.name, skill.source_url)
+                  const displayName = formatSkillDisplayName(skill.name)
+                  const purpose = formatSkillPurpose(
+                    skill.summary,
+                    t('skillPresentation.fallbackPurpose', { name: displayName }),
+                  )
                   return (
                     <div key={skill.slug} className="explore-card">
                       <div className="explore-card-top">
                         <div className="explore-card-info">
-                          <div className="explore-card-name">{skill.name}</div>
+                          <div className="explore-card-name">{displayName}</div>
+                          {displayName !== skill.name ? (
+                            <code className="explore-card-technical-name">{skill.name}</code>
+                          ) : null}
                           <div className="explore-card-author">
                             {skill.source_url
                               .replace('https://github.com/', '')
@@ -189,7 +201,7 @@ const ExplorePage = ({
                           </button>
                         )}
                       </div>
-                      <div className="explore-card-desc">{skill.summary}</div>
+                      <div className="explore-card-desc">{purpose}</div>
                       <div className="explore-card-bottom">
                         <div className="explore-card-stats">
                           <span className="explore-stat">
@@ -216,11 +228,19 @@ const ExplorePage = ({
                   <div className="explore-grid">
                     {deduplicatedResults.map((skill) => {
                       const installed = isInstalled(skill.name, skill.source_url)
+                      const displayName = formatSkillDisplayName(skill.name)
+                      const purpose = formatSkillPurpose(
+                        undefined,
+                        t('skillPresentation.fallbackPurpose', { name: displayName }),
+                      )
                       return (
                         <div key={skill.source} className="explore-card">
                           <div className="explore-card-top">
                             <div className="explore-card-info">
-                              <div className="explore-card-name">{skill.name}</div>
+                              <div className="explore-card-name">{displayName}</div>
+                              {displayName !== skill.name ? (
+                                <code className="explore-card-technical-name">{skill.name}</code>
+                              ) : null}
                               <div className="explore-card-author">{skill.source}</div>
                             </div>
                             {installed ? (
@@ -238,6 +258,7 @@ const ExplorePage = ({
                               </button>
                             )}
                           </div>
+                          <div className="explore-card-desc">{purpose}</div>
                           <div className="explore-card-bottom">
                             <div className="explore-card-stats">
                               <span className="explore-stat">

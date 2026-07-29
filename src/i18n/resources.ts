@@ -84,6 +84,12 @@ export const resources = {
       },
       syncTargets: 'Sync tools',
       skillDescriptionEmpty: 'No description',
+      skillPresentation: {
+        source: 'Source',
+        worksWith: 'Works with',
+        noAgents: 'Not synced',
+        fallbackPurpose: 'Adds {{name}} to your AI Agent.',
+      },
       viewMode: {
         label: 'Skill layout',
         list: 'List view',
@@ -848,6 +854,12 @@ export const resources = {
       },
       syncTargets: '同步工具',
       skillDescriptionEmpty: '暂无描述',
+      skillPresentation: {
+        source: '来源',
+        worksWith: '适用于',
+        noAgents: '尚未同步',
+        fallbackPurpose: '为 AI Agent 添加“{{name}}”能力。',
+      },
       viewMode: {
         label: 'Skill 布局',
         list: '列表视图',
