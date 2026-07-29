@@ -352,6 +352,41 @@
   flex: 1;
 }
 
+.extension-component-copy code,
+.skill-technical-name,
+.explore-card-technical-name {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-presentation-meta {
+  display: flex;
+  min-width: 0;
+  margin-top: 4px;
+  gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.skill-presentation-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-presentation-meta strong {
+  margin-right: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 .extension-component strong,
 .extension-component small {
   overflow: hidden;
@@ -4744,6 +4779,11 @@
 .explore-card-author {
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.explore-card-technical-name {
+  display: block;
+  margin-bottom: 2px;
 }
 
 .explore-card-desc {

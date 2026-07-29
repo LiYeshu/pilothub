@@ -13,6 +13,10 @@ import {
   summarizeExtensionStatus,
 } from './extensionView'
 import ToolIcon from './ToolIcon'
+import {
+  formatSkillDisplayName,
+  formatSkillPurpose,
+} from './skillPresentation'
 
 type ExtensionsPageProps = {
   extensions: Extension[]
@@ -133,6 +137,11 @@ const ExtensionsPage = ({
                     (target) => target.status !== 'disabled',
                   )
                   const scopes = new Set(activeTargets.map((target) => target.scope))
+                  const displayName = formatSkillDisplayName(skill.name)
+                  const purpose = formatSkillPurpose(
+                    skill.description,
+                    t('skillPresentation.fallbackPurpose', { name: displayName }),
+                  )
                   return (
                     <button
                       className="extension-component"
@@ -141,10 +150,9 @@ const ExtensionsPage = ({
                       onClick={() => onOpenSkill(skill)}
                     >
                       <span className="extension-component-copy">
-                        <strong>{skill.name}</strong>
-                        <small>
-                          {skill.description || t('skillDescriptionEmpty')}
-                        </small>
+                        <strong>{displayName}</strong>
+                        {displayName !== skill.name ? <code>{skill.name}</code> : null}
+                        <small>{purpose}</small>
                       </span>
                       <span className="extension-component-meta">
                         {scopes.has('global') ? (

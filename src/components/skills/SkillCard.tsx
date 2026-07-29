@@ -4,6 +4,11 @@ import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import type { ManagedSkill, ToolOption } from './types'
 import ToolIcon from './ToolIcon'
+import {
+  formatSkillDisplayName,
+  formatSkillPurpose,
+  getActiveToolLabels,
+} from './skillPresentation'
 
 type GithubInfo = { label: string; href: string }
 
@@ -54,7 +59,12 @@ const SkillCard = ({
   const isGit = skill.source_type.toLowerCase().includes('git')
   const sourceLabel = github?.label ?? getSkillSourceLabel(skill)
   const copyValue = (github?.href ?? skill.source_ref ?? skill.central_path).trim()
-  const description = skill.description?.trim() || t('skillDescriptionEmpty')
+  const displayName = formatSkillDisplayName(skill.name)
+  const description = formatSkillPurpose(
+    skill.description,
+    t('skillPresentation.fallbackPurpose', { name: displayName }),
+  )
+  const activeToolLabels = getActiveToolLabels(skill.targets, installedTools)
   const scope = getSkillScope(skill)
   const projectCount = getSkillProjects(skill).length
   const enabled = skill.enabled !== false
@@ -97,7 +107,7 @@ const SkillCard = ({
           <div className="skill-identity-copy">
             <div className="skill-title-line">
               <button className="skill-name clickable" type="button" onClick={() => onOpenDetail(skill)}>
-                {skill.name}
+                {displayName}
               </button>
               <button
                 className="skill-source-copy"
@@ -110,8 +120,23 @@ const SkillCard = ({
                 <Copy size={12} />
               </button>
             </div>
-            <div className={`skill-description${skill.description?.trim() ? '' : ' empty'}`} title={description}>
+            {displayName !== skill.name ? (
+              <code className="skill-technical-name">{skill.name}</code>
+            ) : null}
+            <div className="skill-description" title={description}>
               {description}
+            </div>
+            <div className="skill-presentation-meta">
+              <span title={sourceLabel}>
+                <strong>{t('skillPresentation.source')}</strong>
+                {sourceLabel}
+              </span>
+              <span title={activeToolLabels.join(', ')}>
+                <strong>{t('skillPresentation.worksWith')}</strong>
+                {activeToolLabels.length > 0
+                  ? activeToolLabels.join(', ')
+                  : t('skillPresentation.noAgents')}
+              </span>
             </div>
           </div>
         </div>
