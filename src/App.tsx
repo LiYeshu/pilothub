@@ -31,6 +31,7 @@ import NewToolsModal from './components/skills/modals/NewToolsModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
 import SharedDirModal from './components/skills/modals/SharedDirModal'
 import StorageMigrationModal from './components/skills/modals/StorageMigrationModal'
+import WelcomeModal from './components/skills/modals/WelcomeModal'
 import SettingsPage from './components/skills/SettingsPage'
 import ToolsPage from './components/skills/ToolsPage'
 import UpdatesPage from './components/skills/UpdatesPage'
@@ -39,6 +40,10 @@ import {
   getAutoUpdateToastKey,
   shouldKeepWaitingForTriggeredAutoUpdate,
 } from './components/skills/autoUpdateSettings'
+import {
+  shouldShowWelcome,
+  WELCOME_COMPLETED_STORAGE_KEY,
+} from './components/skills/onboardingWelcome'
 import {
   buildInstallSyncJobs,
   filterTargetsForScope,
@@ -103,6 +108,13 @@ function App() {
   }, [language])
   const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>(
     'system',
+  )
+  const [showWelcome, setShowWelcome] = useState(() =>
+    typeof window !== 'undefined'
+      ? shouldShowWelcome(
+          window.localStorage.getItem(WELCOME_COMPLETED_STORAGE_KEY),
+        )
+      : false,
   )
   const [appVersion, setAppVersion] = useState('')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
@@ -1313,6 +1325,16 @@ function App() {
     },
     [loadFeaturedSkills],
   )
+
+  const completeWelcome = useCallback(() => {
+    window.localStorage.setItem(WELCOME_COMPLETED_STORAGE_KEY, 'true')
+    setShowWelcome(false)
+  }, [])
+
+  const handleStartWelcome = useCallback(() => {
+    completeWelcome()
+    handleViewChange('explore')
+  }, [completeWelcome, handleViewChange])
 
   const handleOpenDetail = useCallback((skill: ManagedSkill) => {
     setBulkMode(false)
@@ -3505,6 +3527,12 @@ function App() {
         status={storageMigrationStatus}
         onLater={() => setShowStorageMigration(false)}
         onMigrate={() => void handleStorageMigration()}
+        t={t}
+      />
+      <WelcomeModal
+        open={showWelcome}
+        onSkip={completeWelcome}
+        onStart={handleStartWelcome}
         t={t}
       />
 
