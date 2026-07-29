@@ -2,6 +2,19 @@ export const resources = {
   en: {
     translation: {
       appName: 'PilotHub',
+      welcome: {
+        eyebrow: 'Welcome to PilotHub',
+        title: 'Manage your AI capabilities',
+        description:
+          'Install useful capabilities once, then keep them available across your AI Agents.',
+        steps: {
+          discover: 'Discover a capability',
+          install: 'Install it to an AI Agent',
+          sync: 'Keep it synced and managed',
+        },
+        skip: 'Skip for now',
+        start: 'Get started',
+      },
       storageMigration: {
         title: 'Move your Skills to PilotHub',
         subtitle: 'PilotHub now uses its own managed storage layout.',
@@ -739,6 +752,18 @@ export const resources = {
   zh: {
     translation: {
       appName: 'PilotHub',
+      welcome: {
+        eyebrow: '欢迎使用 PilotHub',
+        title: '管理你的 AI 能力',
+        description: '一次安装实用能力，并让它们持续可用于你的 AI Agent。',
+        steps: {
+          discover: '发现能力',
+          install: '安装到 AI Agent',
+          sync: '自动同步和管理',
+        },
+        skip: '暂时跳过',
+        start: '开始体验',
+      },
       storageMigration: {
         title: '将 Skills 迁移到 PilotHub',
         subtitle: 'PilotHub 现在使用独立的托管存储结构。',
