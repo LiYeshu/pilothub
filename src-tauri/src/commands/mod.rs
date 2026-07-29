@@ -44,6 +44,12 @@ use crate::core::package_managers::runtime::{
     install_latest_apm, managed_apm_root, resolve_apm_adapter,
 };
 use crate::core::package_managers::PackageManager;
+use crate::core::product_feedback::{
+    clear_product_feedback as clear_product_feedback_core,
+    get_product_feedback_status as get_product_feedback_status_core,
+    record_product_feedback_event as record_product_feedback_event_core,
+    set_product_feedback_enabled as set_product_feedback_enabled_core, ProductFeedbackStatus,
+};
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::skills_search::{
     search_skills_online as search_skills_online_core, OnlineSkillResult,
@@ -485,6 +491,48 @@ pub async fn get_package_manager_status() -> Result<Vec<PackageManagerStatusDto>
     })
     .await
     .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub fn get_product_feedback_status(
+    store: State<'_, SkillStore>,
+) -> Result<ProductFeedbackStatus, String> {
+    get_product_feedback_status_core(store.inner()).map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub fn set_product_feedback_enabled(
+    store: State<'_, SkillStore>,
+    enabled: bool,
+) -> Result<ProductFeedbackStatus, String> {
+    set_product_feedback_enabled_core(store.inner(), enabled).map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub fn clear_product_feedback(
+    store: State<'_, SkillStore>,
+) -> Result<ProductFeedbackStatus, String> {
+    clear_product_feedback_core(store.inner()).map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub fn record_product_feedback_event(
+    store: State<'_, SkillStore>,
+    eventName: String,
+    sourceKind: String,
+    targetAgents: Vec<String>,
+    failureCode: Option<String>,
+) -> Result<bool, String> {
+    record_product_feedback_event_core(
+        store.inner(),
+        &eventName,
+        &sourceKind,
+        &targetAgents,
+        failureCode.as_deref(),
+    )
     .map_err(format_anyhow_error)
 }
 

@@ -164,6 +164,11 @@ export type PackageManagerStatusDto = {
   source?: 'system' | 'managed' | null
 }
 
+export type ProductFeedbackStatusDto = {
+  enabled: boolean
+  event_count: number
+}
+
 export type CustomToolConfigDto = {
   key: string
   label: string

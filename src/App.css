@@ -3106,6 +3106,33 @@
   padding-top: 16px;
 }
 
+.product-feedback-boundary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.product-feedback-boundary strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.product-feedback-boundary small {
+  color: var(--text-tertiary);
+}
+
+.product-feedback-actions {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
 .management-page {
   --management-page-padding-x: 32px;
   height: 100%;

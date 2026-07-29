@@ -7,11 +7,16 @@ import {
   Github,
   Palette,
   RefreshCw,
+  ShieldCheck,
 } from 'lucide-react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
-import type { GithubProxyConfigDto, PackageManagerStatusDto } from './types'
+import type {
+  GithubProxyConfigDto,
+  PackageManagerStatusDto,
+  ProductFeedbackStatusDto,
+} from './types'
 
 const PROJECT_REPOSITORY_URL = 'https://github.com/LiYeshu/pilothub'
 
@@ -73,6 +78,9 @@ const SettingsPage = ({
   const [packageManagers, setPackageManagers] = useState<PackageManagerStatusDto[]>([])
   const [packageManagersLoading, setPackageManagersLoading] = useState(false)
   const [packageManagerInstalling, setPackageManagerInstalling] = useState(false)
+  const [productFeedback, setProductFeedback] =
+    useState<ProductFeedbackStatusDto | null>(null)
+  const [productFeedbackSaving, setProductFeedbackSaving] = useState(false)
   const versionText = useMemo(() => {
     if (!isTauri) return t('notAvailable')
     if (!appVersion) return t('unknown')
@@ -117,6 +125,69 @@ const SettingsPage = ({
   useEffect(() => {
     void loadPackageManagers()
   }, [loadPackageManagers])
+
+  const loadProductFeedback = useCallback(async () => {
+    if (!isTauri) {
+      setProductFeedback({ enabled: false, event_count: 0 })
+      return
+    }
+    try {
+      setProductFeedback(
+        await invokeTauri<ProductFeedbackStatusDto>(
+          'get_product_feedback_status',
+        ),
+      )
+    } catch {
+      setProductFeedback(null)
+    }
+  }, [invokeTauri, isTauri])
+
+  useEffect(() => {
+    void loadProductFeedback()
+  }, [loadProductFeedback])
+
+  const handleProductFeedbackToggle = useCallback(async () => {
+    if (!productFeedback) return
+    setProductFeedbackSaving(true)
+    try {
+      const status = await invokeTauri<ProductFeedbackStatusDto>(
+        'set_product_feedback_enabled',
+        { enabled: !productFeedback.enabled },
+      )
+      setProductFeedback(status)
+      toast.success(
+        t(
+          status.enabled
+            ? 'productFeedback.enabledToast'
+            : 'productFeedback.disabledToast',
+        ),
+      )
+    } catch (error) {
+      toast.error(t('productFeedback.saveFailed'), {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setProductFeedbackSaving(false)
+    }
+  }, [invokeTauri, productFeedback, t])
+
+  const handleClearProductFeedback = useCallback(async () => {
+    setProductFeedbackSaving(true)
+    try {
+      setProductFeedback(
+        await invokeTauri<ProductFeedbackStatusDto>(
+          'clear_product_feedback',
+        ),
+      )
+      toast.success(t('productFeedback.clearedToast'))
+    } catch (error) {
+      toast.error(t('productFeedback.clearFailed'), {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setProductFeedbackSaving(false)
+    }
+  }, [invokeTauri, t])
 
   const handleInstallPackageManager = useCallback(async () => {
     setPackageManagerInstalling(true)
@@ -351,6 +422,71 @@ const SettingsPage = ({
                 <div className="settings-helper">{t('gitCacheTtlHint')}</div>
               </div>
             </div>
+            </section>
+
+            <section className="settings-card">
+              <div className="settings-card-head">
+                <span className="settings-card-icon">
+                  <ShieldCheck size={18} />
+                </span>
+                <div>
+                  <h2>{t('settingsSectionPrivacy')}</h2>
+                  <p>{t('settingsSectionPrivacyDesc')}</p>
+                </div>
+              </div>
+              <div className="settings-card-body">
+                <div className="settings-item">
+                  <div className="settings-item-info">
+                    <div className="settings-item-title">
+                      {t('productFeedback.title')}
+                    </div>
+                    <div className="settings-item-desc">
+                      {t('productFeedback.description')}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle${
+                      productFeedback?.enabled ? ' checked' : ''
+                    }`}
+                    aria-pressed={Boolean(productFeedback?.enabled)}
+                    aria-label={t('productFeedback.title')}
+                    disabled={!productFeedback || productFeedbackSaving}
+                    onClick={() => void handleProductFeedbackToggle()}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="product-feedback-boundary">
+                  <strong>{t('productFeedback.boundaryTitle')}</strong>
+                  <span>{t('productFeedback.boundaryBody')}</span>
+                  <small>{t('productFeedback.localOnly')}</small>
+                </div>
+                <div className="settings-project-row product-feedback-actions">
+                  <div className="settings-item-info">
+                    <div className="settings-item-title">
+                      {t('productFeedback.localEvents', {
+                        count: productFeedback?.event_count ?? 0,
+                      })}
+                    </div>
+                    <div className="settings-item-desc">
+                      {t('productFeedback.clearDescription')}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    type="button"
+                    disabled={
+                      productFeedbackSaving ||
+                      !productFeedback ||
+                      productFeedback.event_count === 0
+                    }
+                    onClick={() => void handleClearProductFeedback()}
+                  >
+                    {t('productFeedback.clear')}
+                  </button>
+                </div>
+              </div>
             </section>
           </div>
 
