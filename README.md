@@ -16,9 +16,9 @@ Use it in Claude Code and Codex
 
 ## Project status
 
-PilotHub `0.9.0-alpha.1` is the first Alpha built on the verified Skills Hub
-v0.8.0 baseline. The repository has completed its upstream baseline, product
-rebrand, and storage migration.
+PilotHub `0.9.0-alpha.2` focuses the verified Skills Hub v0.8.0 foundation on
+the complete first-use journey: understand an AI capability, install it to a
+detected Agent, diagnose failures, and start using it.
 
 Current implementation:
 
@@ -31,6 +31,12 @@ Current implementation:
 - Managed Microsoft APM runtime installation and health detection
 - Project-scoped APM Skill installation, targeted updates, and consistent uninstall
 - Extension collections grouped by source, with health, Agent targets, and scope summaries
+- First-launch guidance for users who are new to Skills
+- Recommended capability cards with plain-language use cases
+- Quick install with automatic Agent detection and target selection
+- Installation success guidance with the next action
+- Local installation diagnostics for GitHub, Agent targets, directories, and Skill format
+- Optional privacy-first product feedback stored only on the device
 
 Planned PilotHub capabilities:
 
@@ -45,6 +51,9 @@ The existing `Skill` model remains the persisted core object during the Alpha.
 The native and Microsoft APM installation paths have passed end-to-end
 verification. PilotHub currently presents installed Skills as source-grouped
 Extension collections without changing the SQLite schema.
+
+Alpha.2 does not add MCP, Agent, Prompt, Hook, marketplace, workflow, or cloud
+account support. Its boundary remains the first successful Skill installation.
 
 ## Architecture
 

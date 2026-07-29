@@ -1,7 +1,11 @@
 import { memo, useMemo } from 'react'
-import { Plus, Search, Star } from 'lucide-react'
+import { Bot, Plus, Search, Settings2, Star } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { FeaturedSkillDto, ManagedSkill, OnlineSkillDto } from './types'
+import {
+  formatSkillDisplayName,
+  formatSkillPurpose,
+} from './skillPresentation'
 
 type ExplorePageProps = {
   featuredSkills: FeaturedSkillDto[]
@@ -11,8 +15,10 @@ type ExplorePageProps = {
   searchLoading: boolean
   managedSkills: ManagedSkill[]
   loading: boolean
+  detectedAgentLabels: string[]
   onExploreFilterChange: (value: string) => void
   onInstallSkill: (sourceUrl: string, skillName?: string) => void
+  onManageAgents: () => void
   onOpenManualAdd: (tab?: 'git' | 'local') => void
   t: TFunction
 }
@@ -31,8 +37,10 @@ const ExplorePage = ({
   searchLoading,
   managedSkills,
   loading,
+  detectedAgentLabels,
   onExploreFilterChange,
   onInstallSkill,
+  onManageAgents,
   onOpenManualAdd,
   t,
 }: ExplorePageProps) => {
@@ -113,6 +121,37 @@ const ExplorePage = ({
         <div className="explore-source-label">
           {t('exploreSourceHint')}
         </div>
+        <div
+          className={`quick-install-targets${
+            detectedAgentLabels.length === 0 ? ' warning' : ''
+          }`}
+        >
+          <Bot size={17} aria-hidden="true" />
+          <div>
+            <strong>
+              {detectedAgentLabels.length > 0
+                ? t('quickInstall.autoTargetsTitle')
+                : t('quickInstall.noAgentsTitle')}
+            </strong>
+            <span>
+              {detectedAgentLabels.length > 0
+                ? t('quickInstall.autoTargetsDescription', {
+                    targets: detectedAgentLabels.join(', '),
+                  })
+                : t('quickInstall.noAgentsDescription')}
+            </span>
+          </div>
+          {detectedAgentLabels.length === 0 ? (
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={onManageAgents}
+            >
+              <Settings2 size={14} aria-hidden="true" />
+              {t('quickInstall.manageAgents')}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="explore-scroll">
@@ -128,11 +167,19 @@ const ExplorePage = ({
               <div className="explore-grid">
                 {filteredSkills.map((skill) => {
                   const installed = isInstalled(skill.name, skill.source_url)
+                  const displayName = formatSkillDisplayName(skill.name)
+                  const purpose = formatSkillPurpose(
+                    skill.summary,
+                    t('skillPresentation.fallbackPurpose', { name: displayName }),
+                  )
                   return (
                     <div key={skill.slug} className="explore-card">
                       <div className="explore-card-top">
                         <div className="explore-card-info">
-                          <div className="explore-card-name">{skill.name}</div>
+                          <div className="explore-card-name">{displayName}</div>
+                          {displayName !== skill.name ? (
+                            <code className="explore-card-technical-name">{skill.name}</code>
+                          ) : null}
                           <div className="explore-card-author">
                             {skill.source_url
                               .replace('https://github.com/', '')
@@ -147,14 +194,14 @@ const ExplorePage = ({
                           <button
                             className="explore-btn-install"
                             type="button"
-                            disabled={loading}
+                            disabled={loading || detectedAgentLabels.length === 0}
                             onClick={() => onInstallSkill(skill.source_url)}
                           >
-                            {t('install')}
+                            {t('quickInstall.action')}
                           </button>
                         )}
                       </div>
-                      <div className="explore-card-desc">{skill.summary}</div>
+                      <div className="explore-card-desc">{purpose}</div>
                       <div className="explore-card-bottom">
                         <div className="explore-card-stats">
                           <span className="explore-stat">
@@ -181,11 +228,19 @@ const ExplorePage = ({
                   <div className="explore-grid">
                     {deduplicatedResults.map((skill) => {
                       const installed = isInstalled(skill.name, skill.source_url)
+                      const displayName = formatSkillDisplayName(skill.name)
+                      const purpose = formatSkillPurpose(
+                        undefined,
+                        t('skillPresentation.fallbackPurpose', { name: displayName }),
+                      )
                       return (
                         <div key={skill.source} className="explore-card">
                           <div className="explore-card-top">
                             <div className="explore-card-info">
-                              <div className="explore-card-name">{skill.name}</div>
+                              <div className="explore-card-name">{displayName}</div>
+                              {displayName !== skill.name ? (
+                                <code className="explore-card-technical-name">{skill.name}</code>
+                              ) : null}
                               <div className="explore-card-author">{skill.source}</div>
                             </div>
                             {installed ? (
@@ -196,13 +251,14 @@ const ExplorePage = ({
                               <button
                                 className="explore-btn-install"
                                 type="button"
-                                disabled={loading}
+                                disabled={loading || detectedAgentLabels.length === 0}
                                 onClick={() => onInstallSkill(skill.source_url, skill.name)}
                               >
-                                {t('install')}
+                                {t('quickInstall.action')}
                               </button>
                             )}
                           </div>
+                          <div className="explore-card-desc">{purpose}</div>
                           <div className="explore-card-bottom">
                             <div className="explore-card-stats">
                               <span className="explore-stat">

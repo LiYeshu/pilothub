@@ -124,6 +124,19 @@ export type InstallResultDto = {
   content_hash?: string | null
 }
 
+export type InstallDiagnosticStatus = 'pass' | 'warning' | 'fail'
+
+export type InstallDiagnosticCheckDto = {
+  id: 'github' | 'agents' | 'directories' | 'skill_format' | string
+  status: InstallDiagnosticStatus
+  detail?: string | null
+  paths: string[]
+}
+
+export type InstallDiagnosticsDto = {
+  checks: InstallDiagnosticCheckDto[]
+}
+
 export type ToolInfoDto = {
   key: string
   label: string
@@ -149,6 +162,11 @@ export type PackageManagerStatusDto = {
   available: boolean
   version?: string | null
   source?: 'system' | 'managed' | null
+}
+
+export type ProductFeedbackStatusDto = {
+  enabled: boolean
+  event_count: number
 }
 
 export type CustomToolConfigDto = {

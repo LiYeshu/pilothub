@@ -27,10 +27,13 @@ import EditSkillTagsModal from './components/skills/modals/EditSkillTagsModal'
 import GitPickModal from './components/skills/modals/GitPickModal'
 import LocalPickModal from './components/skills/modals/LocalPickModal'
 import ImportModal from './components/skills/modals/ImportModal'
+import InstallSuccessModal from './components/skills/modals/InstallSuccessModal'
+import InstallDiagnosticsModal from './components/skills/modals/InstallDiagnosticsModal'
 import NewToolsModal from './components/skills/modals/NewToolsModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
 import SharedDirModal from './components/skills/modals/SharedDirModal'
 import StorageMigrationModal from './components/skills/modals/StorageMigrationModal'
+import WelcomeModal from './components/skills/modals/WelcomeModal'
 import SettingsPage from './components/skills/SettingsPage'
 import ToolsPage from './components/skills/ToolsPage'
 import UpdatesPage from './components/skills/UpdatesPage'
@@ -39,6 +42,19 @@ import {
   getAutoUpdateToastKey,
   shouldKeepWaitingForTriggeredAutoUpdate,
 } from './components/skills/autoUpdateSettings'
+import {
+  shouldShowWelcome,
+  WELCOME_COMPLETED_STORAGE_KEY,
+} from './components/skills/onboardingWelcome'
+import {
+  getQuickInstallTargetLabels,
+  selectQuickInstallTools,
+  type InstallSuccessState,
+} from './components/skills/quickInstall'
+import {
+  classifyInstallFailure,
+  type ProductFeedbackFailureCode,
+} from './components/skills/productFeedback'
 import {
   buildInstallSyncJobs,
   filterTargetsForScope,
@@ -57,6 +73,7 @@ import type {
   GitSkillCandidate,
   GithubProxyConfigDto,
   InstallResultDto,
+  InstallDiagnosticsDto,
   LocalSkillCandidate,
   ManagedSkill,
   OnboardingPlan,
@@ -104,6 +121,13 @@ function App() {
   const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>(
     'system',
   )
+  const [showWelcome, setShowWelcome] = useState(() =>
+    typeof window !== 'undefined'
+      ? shouldShowWelcome(
+          window.localStorage.getItem(WELCOME_COMPLETED_STORAGE_KEY),
+        )
+      : false,
+  )
   const [appVersion, setAppVersion] = useState('')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
   const [plan, setPlan] = useState<OnboardingPlan | null>(null)
@@ -116,6 +140,14 @@ function App() {
   const [successToastMessage, setSuccessToastMessage] = useState<string | null>(
     null,
   )
+  const [installSuccess, setInstallSuccess] =
+    useState<InstallSuccessState | null>(null)
+  const [showInstallDiagnostics, setShowInstallDiagnostics] = useState(false)
+  const [installDiagnosticsLoading, setInstallDiagnosticsLoading] = useState(false)
+  const [installDiagnostics, setInstallDiagnostics] =
+    useState<InstallDiagnosticsDto | null>(null)
+  const [installDiagnosticsError, setInstallDiagnosticsError] =
+    useState<string | null>(null)
   const [managedSkills, setManagedSkills] = useState<ManagedSkill[]>([])
   const [extensions, setExtensions] = useState<Extension[]>([])
   const [localPath, setLocalPath] = useState('')
@@ -710,12 +742,38 @@ function App() {
     () => tools.filter((tool) => installedToolIds.includes(tool.id)),
     [tools, installedToolIds],
   )
+  const quickInstallTools = useMemo(
+    () => selectQuickInstallTools(installedTools),
+    [installedTools],
+  )
+  const quickInstallTargetLabels = useMemo(
+    () => getQuickInstallTargetLabels(quickInstallTools),
+    [quickInstallTools],
+  )
   const installPreviewTargets = useMemo(
     () =>
       installedTools
         .filter((tool) => syncTargets[tool.id])
         .map((tool) => tool.label),
     [installedTools, syncTargets],
+  )
+  const recordProductFeedback = useCallback(
+    (
+      eventName: 'install_start' | 'install_success' | 'install_fail',
+      sourceKind: 'github' | 'local',
+      failureCode?: ProductFeedbackFailureCode,
+    ) => {
+      const targetAgents = installedTools
+        .filter((tool) => syncTargets[tool.id])
+        .map((tool) => tool.id)
+      void invokeTauri<boolean>('record_product_feedback_event', {
+        eventName,
+        sourceKind,
+        targetAgents,
+        failureCode,
+      }).catch(() => undefined)
+    },
+    [installedTools, invokeTauri, syncTargets],
   )
   const toolSupportsProjectScope = useCallback(
     (toolId: string) =>
@@ -1313,6 +1371,16 @@ function App() {
     },
     [loadFeaturedSkills],
   )
+
+  const completeWelcome = useCallback(() => {
+    window.localStorage.setItem(WELCOME_COMPLETED_STORAGE_KEY, 'true')
+    setShowWelcome(false)
+  }, [])
+
+  const handleStartWelcome = useCallback(() => {
+    completeWelcome()
+    handleViewChange('explore')
+  }, [completeWelcome, handleViewChange])
 
   const handleOpenDetail = useCallback((skill: ManagedSkill) => {
     setBulkMode(false)
@@ -2439,6 +2507,7 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('actions.creatingLocalSkill'))
+    recordProductFeedback('install_start', 'local')
     try {
       const basePath = localPath.trim()
       const candidates = await invokeTauri<LocalSkillCandidate[]>(
@@ -2464,7 +2533,16 @@ function App() {
         )
         await applySelectedAddModalTags(created.skill_id, created.name)
         const syncErrors = await syncInstalledSkill(created)
-        if (syncErrors.length > 0) showActionErrors(syncErrors)
+        if (syncErrors.length > 0) {
+          showActionErrors(syncErrors)
+          recordProductFeedback(
+            'install_fail',
+            'local',
+            classifyInstallFailure(syncErrors[0].message),
+          )
+        } else {
+          recordProductFeedback('install_success', 'local')
+        }
         setLocalPath('')
         setLocalName('')
         setActionMessage(t('status.localSkillCreated'))
@@ -2487,7 +2565,14 @@ function App() {
         return
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const raw = err instanceof Error ? err.message : String(err)
+      setError(raw)
+      recordProductFeedback(
+        'install_fail',
+        'local',
+        classifyInstallFailure(raw),
+      )
+      void handleRunInstallDiagnostics()
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2503,7 +2588,29 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('actions.creatingGitSkill'))
+    recordProductFeedback('install_start', 'github')
     setGitPickInstaller('native')
+    let quickInstallResult: InstallSuccessState | null = null
+    const captureQuickInstallResult = (
+      created: InstallResultDto,
+      syncErrors: { title: string; message: string }[],
+    ) => {
+      if (syncErrors.length > 0) {
+        recordProductFeedback(
+          'install_fail',
+          'github',
+          classifyInstallFailure(syncErrors[0].message),
+        )
+      } else {
+        recordProductFeedback('install_success', 'github')
+      }
+      if (!quickInstallRequestedRef.current || syncErrors.length > 0) return
+      quickInstallResult = {
+        skillId: created.skill_id,
+        skillName: created.name,
+        targetLabels: installPreviewTargets,
+      }
+    }
     try {
       const url = gitUrl.trim()
       const isFolderUrl = url.includes('/tree/') || url.includes('/blob/')
@@ -2544,6 +2651,7 @@ function App() {
         )
         await applySelectedAddModalTags(created.skill_id, created.name)
         const syncErrors = await syncInstalledSkill(created)
+        captureQuickInstallResult(created, syncErrors)
         if (syncErrors.length > 0) showActionErrors(syncErrors)
       } else {
         const collection = await invokeTauri<SkillCollection>(
@@ -2569,6 +2677,7 @@ function App() {
           )
           await applySelectedAddModalTags(created.skill_id, created.name)
           const syncErrors = await syncInstalledSkill(created)
+          captureQuickInstallResult(created, syncErrors)
           if (syncErrors.length > 0) showActionErrors(syncErrors)
         } else if (autoSelectSkillName) {
           // Auto-select the matching skill from online search results.
@@ -2598,6 +2707,7 @@ function App() {
             )
             await applySelectedAddModalTags(created.skill_id, created.name)
             const syncErrors = await syncInstalledSkill(created)
+            captureQuickInstallResult(created, syncErrors)
             if (syncErrors.length > 0) showActionErrors(syncErrors)
           } else {
             // No match found, fall back to picker
@@ -2636,9 +2746,20 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
+      if (quickInstallResult) {
+        setInstallSuccess(quickInstallResult)
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const raw = err instanceof Error ? err.message : String(err)
+      setError(raw)
+      recordProductFeedback(
+        'install_fail',
+        'github',
+        classifyInstallFailure(raw),
+      )
+      void handleRunInstallDiagnostics()
     } finally {
+      quickInstallRequestedRef.current = false
       setLoading(false)
       setLoadingStartAt(null)
     }
@@ -2658,6 +2779,7 @@ function App() {
     setLoadingStartAt(Date.now())
     setError(null)
     setActionMessage(t('apmInstall.scanning'))
+    recordProductFeedback('install_start', 'github')
     try {
       const url = gitUrl.trim()
       const collection = await invokeTauri<SkillCollection>(
@@ -2682,7 +2804,13 @@ function App() {
       setShowGitPickModal(true)
       setActionMessage(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message)
+      recordProductFeedback(
+        'install_fail',
+        'github',
+        classifyInstallFailure(message),
+      )
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2691,23 +2819,29 @@ function App() {
 
   const [exploreInstallTrigger, setExploreInstallTrigger] = useState(0)
   const exploreInstallUrlRef = useRef<string | null>(null)
+  const quickInstallRequestedRef = useRef(false)
 
   const handleExploreInstall = useCallback(
     (sourceUrl: string, skillName?: string) => {
+      if (quickInstallTools.length === 0) {
+        toast.error(t('quickInstall.noAgentsDescription'))
+        return
+      }
       resetInstallScope()
       setGitUrl(sourceUrl)
       if (skillName) setAutoSelectSkillName(skillName)
       if (toolStatus) {
         const targets: Record<string, boolean> = {}
-        for (const id of toolStatus.installed) {
-          targets[id] = true
+        for (const tool of quickInstallTools) {
+          targets[tool.id] = true
         }
         setSyncTargets(targets)
       }
+      quickInstallRequestedRef.current = true
       exploreInstallUrlRef.current = sourceUrl
       setExploreInstallTrigger((n) => n + 1)
     },
-    [resetInstallScope, toolStatus],
+    [quickInstallTools, resetInstallScope, t, toolStatus],
   )
 
   useEffect(() => {
@@ -2804,7 +2938,16 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
-      if (collectedErrors.length > 0) showActionErrors(collectedErrors)
+      if (collectedErrors.length > 0) {
+        showActionErrors(collectedErrors)
+        recordProductFeedback(
+          'install_fail',
+          'local',
+          classifyInstallFailure(collectedErrors[0].message),
+        )
+      } else {
+        recordProductFeedback('install_success', 'local')
+      }
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2881,7 +3024,16 @@ function App() {
       setShowAddModal(false)
       await loadManagedSkills()
       await loadTags()
-      if (collectedErrors.length > 0) showActionErrors(collectedErrors)
+      if (collectedErrors.length > 0) {
+        showActionErrors(collectedErrors)
+        recordProductFeedback(
+          'install_fail',
+          'github',
+          classifyInstallFailure(collectedErrors[0].message),
+        )
+      } else {
+        recordProductFeedback('install_success', 'github')
+      }
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -2935,8 +3087,15 @@ function App() {
       await loadTags()
       setSuccessToastMessage(t('apmInstall.success', { name: created.name }))
       setActionMessage(null)
+      recordProductFeedback('install_success', 'github')
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const raw = err instanceof Error ? err.message : String(err)
+      setError(raw)
+      recordProductFeedback(
+        'install_fail',
+        'github',
+        classifyInstallFailure(raw),
+      )
     } finally {
       setLoading(false)
       setLoadingStartAt(null)
@@ -3485,6 +3644,61 @@ function App() {
     setActiveView('manage')
   }
 
+  const handleManageAgents = useCallback(() => {
+    setShowAddModal(false)
+    setManagementTab('tools')
+    setActiveView('manage')
+  }, [])
+
+  const handleCloseInstallSuccess = useCallback(() => {
+    setInstallSuccess(null)
+  }, [])
+
+  const handleRunInstallDiagnostics = async () => {
+    const sourceKind = addModalTab === 'local' ? 'local' : 'git'
+    const source = sourceKind === 'local' ? localPath.trim() : gitUrl.trim()
+    if (!source) {
+      toast.error(
+        sourceKind === 'local'
+          ? t('errors.requireLocalPath')
+          : t('errors.requireGitUrl'),
+      )
+      return
+    }
+    const toolIds = installedTools
+      .filter((tool) => syncTargets[tool.id])
+      .map((tool) => tool.id)
+    setShowInstallDiagnostics(true)
+    setInstallDiagnosticsLoading(true)
+    setInstallDiagnostics(null)
+    setInstallDiagnosticsError(null)
+    try {
+      const result = await invokeTauri<InstallDiagnosticsDto>(
+        'run_install_diagnostics',
+        { sourceKind, source, toolIds },
+      )
+      setInstallDiagnostics(result)
+    } catch (err) {
+      setInstallDiagnosticsError(formatErrorMessage(
+        err instanceof Error ? err.message : String(err),
+      ))
+    } finally {
+      setInstallDiagnosticsLoading(false)
+    }
+  }
+
+  const handleViewInstalledSkill = useCallback(() => {
+    if (!installSuccess) return
+    const skill = managedSkills.find(
+      (candidate) => candidate.id === installSuccess.skillId,
+    )
+    setInstallSuccess(null)
+    if (!skill) return
+    setDetailSkill(skill)
+    setDetailReturnView('myskills')
+    setActiveView('detail')
+  }, [installSuccess, managedSkills])
+
   return (
     <div className={`skills-app${isTauri ? ' is-tauri' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <Toaster
@@ -3505,6 +3719,27 @@ function App() {
         status={storageMigrationStatus}
         onLater={() => setShowStorageMigration(false)}
         onMigrate={() => void handleStorageMigration()}
+        t={t}
+      />
+      <WelcomeModal
+        open={showWelcome}
+        onSkip={completeWelcome}
+        onStart={handleStartWelcome}
+        t={t}
+      />
+      <InstallSuccessModal
+        result={installSuccess}
+        onClose={handleCloseInstallSuccess}
+        onViewSkill={handleViewInstalledSkill}
+        t={t}
+      />
+      <InstallDiagnosticsModal
+        open={showInstallDiagnostics}
+        loading={installDiagnosticsLoading}
+        result={installDiagnostics}
+        error={installDiagnosticsError}
+        onClose={() => setShowInstallDiagnostics(false)}
+        onRetry={() => void handleRunInstallDiagnostics()}
         t={t}
       />
 
@@ -3772,8 +4007,10 @@ function App() {
             searchLoading={searchLoading}
             managedSkills={managedSkills}
             loading={loading}
+            detectedAgentLabels={quickInstallTargetLabels}
             onExploreFilterChange={handleExploreFilterChange}
             onInstallSkill={handleExploreInstall}
+            onManageAgents={handleManageAgents}
             onOpenManualAdd={handleOpenAdd}
             t={t}
           />
@@ -3806,6 +4043,7 @@ function App() {
         onInstallProjectsChange={handleInstallProjectsChange}
         onPickProject={handlePickProject}
         onSubmit={addModalTab === 'local' ? handleCreateLocal : handleCreateGit}
+        onDiagnose={() => void handleRunInstallDiagnostics()}
         onPreviewApm={() => void handlePreviewApmInstall()}
         t={t}
       />

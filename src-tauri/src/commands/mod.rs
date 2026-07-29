@@ -23,6 +23,10 @@ use crate::core::content_hash::hash_dir;
 use crate::core::extensions::{map_skills_to_extensions, Extension};
 use crate::core::featured_skills::{fetch_featured_skills, FeaturedSkill};
 use crate::core::github_search::{search_github_repos, RepoSummary};
+use crate::core::install_diagnostics::{
+    check_agent_targets, check_github_connection, check_local_skill_source, git_skill_source_check,
+    DiagnosticAgent, InstallDiagnostics,
+};
 use crate::core::installer::{
     install_git_skill, install_git_skill_from_selection, install_local_skill,
     install_local_skill_from_selection, list_local_skills, scan_git_skill_collection,
@@ -40,6 +44,12 @@ use crate::core::package_managers::runtime::{
     install_latest_apm, managed_apm_root, resolve_apm_adapter,
 };
 use crate::core::package_managers::PackageManager;
+use crate::core::product_feedback::{
+    clear_product_feedback as clear_product_feedback_core,
+    get_product_feedback_status as get_product_feedback_status_core,
+    record_product_feedback_event as record_product_feedback_event_core,
+    set_product_feedback_enabled as set_product_feedback_enabled_core, ProductFeedbackStatus,
+};
 use crate::core::skill_store::{SkillStore, SkillTargetRecord};
 use crate::core::skills_search::{
     search_skills_online as search_skills_online_core, OnlineSkillResult,
@@ -434,6 +444,46 @@ pub async fn get_tool_status(store: State<'_, SkillStore>) -> Result<ToolStatusD
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
+pub async fn run_install_diagnostics(
+    app: tauri::AppHandle,
+    store: State<'_, SkillStore>,
+    sourceKind: String,
+    source: String,
+    toolIds: Vec<String>,
+) -> Result<InstallDiagnostics, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let tools = runtime_tools(&store, true)?;
+        let selected = tools
+            .into_iter()
+            .filter(|tool| toolIds.is_empty() || toolIds.contains(&tool.key))
+            .map(|tool| DiagnosticAgent {
+                label: tool.label,
+                installed: tool.installed,
+                skills_dir: tool.skills_dir,
+            })
+            .collect::<Vec<_>>();
+        let proxy_url = get_github_proxy_url_core(&store)?;
+        let mut checks = vec![check_github_connection(&proxy_url)];
+        checks.extend(check_agent_targets(&selected));
+        let source_check = if sourceKind == "local" {
+            check_local_skill_source(&expand_home_path(&source)?)
+        } else {
+            let result = scan_git_skill_collection(&app, &store, &source)
+                .map(|collection| collection.skills.len())
+                .map_err(format_anyhow_error);
+            git_skill_source_check(result)
+        };
+        checks.push(source_check);
+        Ok::<_, anyhow::Error>(InstallDiagnostics { checks })
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
 pub async fn get_package_manager_status() -> Result<Vec<PackageManagerStatusDto>, String> {
     tauri::async_runtime::spawn_blocking(|| {
         let status = detect_apm_status()?;
@@ -441,6 +491,48 @@ pub async fn get_package_manager_status() -> Result<Vec<PackageManagerStatusDto>
     })
     .await
     .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub fn get_product_feedback_status(
+    store: State<'_, SkillStore>,
+) -> Result<ProductFeedbackStatus, String> {
+    get_product_feedback_status_core(store.inner()).map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub fn set_product_feedback_enabled(
+    store: State<'_, SkillStore>,
+    enabled: bool,
+) -> Result<ProductFeedbackStatus, String> {
+    set_product_feedback_enabled_core(store.inner(), enabled).map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub fn clear_product_feedback(
+    store: State<'_, SkillStore>,
+) -> Result<ProductFeedbackStatus, String> {
+    clear_product_feedback_core(store.inner()).map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub fn record_product_feedback_event(
+    store: State<'_, SkillStore>,
+    eventName: String,
+    sourceKind: String,
+    targetAgents: Vec<String>,
+    failureCode: Option<String>,
+) -> Result<bool, String> {
+    record_product_feedback_event_core(
+        store.inner(),
+        &eventName,
+        &sourceKind,
+        &targetAgents,
+        failureCode.as_deref(),
+    )
     .map_err(format_anyhow_error)
 }
 

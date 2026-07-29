@@ -352,6 +352,41 @@
   flex: 1;
 }
 
+.extension-component-copy code,
+.skill-technical-name,
+.explore-card-technical-name {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-presentation-meta {
+  display: flex;
+  min-width: 0;
+  margin-top: 4px;
+  gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.skill-presentation-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-presentation-meta strong {
+  margin-right: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 .extension-component strong,
 .extension-component small {
   overflow: hidden;
@@ -1716,6 +1751,113 @@
   justify-content: space-between;
 }
 
+.welcome-backdrop {
+  z-index: 2100;
+}
+
+.welcome-modal {
+  width: min(560px, 100%);
+}
+
+.welcome-content {
+  padding: 36px 36px 30px;
+}
+
+.welcome-mark {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  background: var(--accent-soft-bg);
+  border-radius: var(--radius-md);
+}
+
+.welcome-heading {
+  margin-top: 22px;
+}
+
+.welcome-heading p {
+  margin: 0 0 6px;
+  color: var(--accent-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.welcome-heading h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.welcome-heading span {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.welcome-steps {
+  display: grid;
+  gap: 10px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-steps li {
+  display: grid;
+  grid-template-columns: 32px 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.welcome-step-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  background: var(--accent-soft-bg);
+  border-radius: var(--radius-sm);
+}
+
+.welcome-step-index {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.welcome-steps strong {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.welcome-actions {
+  padding: 16px 36px;
+}
+
+@media (max-width: 560px) {
+  .welcome-content {
+    padding: 28px 24px 24px;
+  }
+
+  .welcome-actions {
+    padding: 14px 24px;
+  }
+}
+
 .modal-delete .delete-body {
   gap: 12px;
 }
@@ -2962,6 +3104,33 @@
   flex-direction: column;
   gap: 16px;
   padding-top: 16px;
+}
+
+.product-feedback-boundary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.product-feedback-boundary strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.product-feedback-boundary small {
+  color: var(--text-tertiary);
+}
+
+.product-feedback-actions {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .management-page {
@@ -4543,6 +4712,48 @@
   padding-left: 4px;
 }
 
+.quick-install-targets {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-soft-border);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft-bg);
+}
+
+.quick-install-targets.warning {
+  color: var(--status-warning);
+  border-color: color-mix(in srgb, var(--status-warning) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--status-warning) 9%, var(--bg-panel));
+}
+
+.quick-install-targets > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quick-install-targets strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quick-install-targets span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.quick-install-targets .btn {
+  height: 32px;
+  padding: 0 10px;
+}
+
 .explore-scroll {
   flex: 1;
   overflow-y: auto;
@@ -4595,6 +4806,11 @@
 .explore-card-author {
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.explore-card-technical-name {
+  display: block;
+  margin-bottom: 2px;
 }
 
 .explore-card-desc {
@@ -4666,6 +4882,207 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
+}
+
+.install-success-backdrop {
+  z-index: 2100;
+}
+
+.install-success-modal {
+  width: min(520px, 100%);
+}
+
+.install-success-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+}
+
+.install-success-icon {
+  color: var(--status-success);
+}
+
+.install-success-content h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.install-success-content p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.install-success-targets,
+.install-success-next {
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.install-success-targets > span,
+.install-success-next > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.install-success-targets ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.install-success-targets li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--status-success);
+}
+
+.install-success-targets strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.install-success-next p {
+  margin: 0;
+}
+
+.install-success-actions {
+  padding: 16px 32px;
+}
+
+.diagnostics-backdrop {
+  z-index: 1200;
+}
+
+.install-diagnostics-modal {
+  width: min(620px, calc(100vw - 40px));
+}
+
+.install-diagnostics-subtitle {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.install-diagnostics-body {
+  min-height: 260px;
+}
+
+.install-diagnostics-loading {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.install-diagnostics-loading svg {
+  color: var(--accent-primary);
+}
+
+.install-diagnostics-loading strong {
+  color: var(--text-primary);
+}
+
+.install-diagnostics-loading span {
+  font-size: 12px;
+}
+
+.install-diagnostics-list {
+  display: grid;
+  gap: 8px;
+}
+
+.install-diagnostic-check,
+.install-diagnostics-error {
+  display: flex;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.install-diagnostic-check.pass .install-diagnostic-icon {
+  color: var(--status-success);
+}
+
+.install-diagnostic-check.warning .install-diagnostic-icon {
+  color: var(--status-warning);
+}
+
+.install-diagnostic-check.fail .install-diagnostic-icon,
+.install-diagnostics-error {
+  color: var(--status-error);
+}
+
+.install-diagnostic-copy,
+.install-diagnostics-error > div {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+
+.install-diagnostic-copy strong,
+.install-diagnostics-error strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.install-diagnostic-copy span,
+.install-diagnostics-error span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.install-diagnostic-copy small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.install-diagnostic-copy code {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .quick-install-targets {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .quick-install-targets .btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .install-success-content {
+    padding: 24px;
+  }
+
+  .install-success-actions {
+    padding: 14px 24px;
+  }
 }
 
 /* ===== Skill Detail View ===== */
