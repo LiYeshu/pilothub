@@ -1,6 +1,6 @@
 [package]
 name = "pilothub"
-version = "0.9.0-alpha.2"
+version = "0.10.0-alpha.1"
 description = "AI Agent extension manager for Skills, MCP, Agents, Prompts, and Hooks"
 authors = ["PilotHub contributors"]
 license = "MIT"

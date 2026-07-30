@@ -4,6 +4,8 @@ PilotHub 是一个 AI Agent 扩展管理中心。当前版本用于集中安装�
 
 > English documentation: [`README.md`](../README.md)
 
+PilotHub `0.10.0-alpha.1` 在既有独立 Skill 链路之外，新增标准 Skill-only Codex Plugin 的检查、安装、诊断和完整生命周期管理。包含多个 Skills 的 Plugin 会以“AI 专家团队”展示，但任务理解和 Skills 执行仍由 Codex 负责。
+
 ## 为什么使用 PilotHub
 
 AI 编程工具越来越多，每个工具都有自己的 skills 目录和安装方式。手动维护这些目录会带来几个问题：同一个 Skill 要复制多份、更新来源不清楚、不同工具启用状态不一致、批量整理成本高。
@@ -21,6 +23,8 @@ PilotHub 的做法是：把 Skill 统一安装到中心仓库，再按你的选�
 - **自动更新**：定时更新 Git 和本地来源的 Skill，并查看失败原因。
 - **详情查看**：浏览 Skill 文件树、Markdown 内容和代码片段。
 - **迁移接管**：扫描并导入本机已有 Skills，统一纳入管理。
+- **Codex Plugin 管理**：从 GitHub 或本地目录预览和校验标准 Skill-only Plugin，原子化安装并在失败时回滚。
+- **AI 专家团队**：把多 Skill Plugin 作为一个业务能力展示，统一查看统筹角色、专业 Skills、示例任务和运行状态。
 
 ## 界面预览
 
@@ -69,6 +73,16 @@ Explore 汇总精选仓库中的 Skill，并支持在线搜索。点击 Install 
 3. PilotHub 将 Skill 保存到中心仓库，默认目录为 `~/.pilothub/extensions`。
 4. 按工具规则同步到全局 skills 目录或项目级 skills 目录。
 5. 后续可以在 My Skills 中批量整理、启停、删除，或在管理中心配置自动更新和工具目标。
+
+Codex Plugin 使用独立链路：
+
+1. 提供标准 Skill-only Codex Plugin 的 GitHub URL 或本地目录。
+2. PilotHub 检查 `.codex-plugin/plugin.json` 和包含的 Skills。
+3. 通过隔离的 `pilothub-local` marketplace 把完整 Plugin 安装到 Codex。
+4. 在 Extensions 页面查看专家团队、示例任务和诊断状态。
+5. 由 Codex 根据业务目标选择并执行 Plugin 中的 Skills。
+
+当前版本不包含 MCP、多 Agent runtime、工作流引擎、扩展市场或云端账号。
 
 ## 支持的 AI 编程工具
 

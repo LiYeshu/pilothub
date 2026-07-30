@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0-alpha.1] - 2026-07-30
+
+### Added
+- **Codex Plugin lifecycle**: Inspect, validate, install, diagnose, and uninstall standard Skill-only Codex Plugins from GitHub or local directories as one lifecycle object.
+- **PilotHub local marketplace**: Register installed Plugins through an isolated `pilothub-local` Codex marketplace without taking over a user's existing marketplaces.
+- **Atomic Plugin installation**: Stage and validate Plugin contents before activation, with rollback when Codex registration or installation fails.
+- **Plugin preview and management**: Preview manifest metadata, included Skills, capabilities, prompts, source, validation results, and installation status before and after installation.
+- **AI expert team experience**: Present multi-Skill Plugins as business-focused expert teams with an orchestrating role, specialist capabilities, example tasks, and a unified detail view.
+
+### Changed
+- **Extension model**: Treat a Codex Plugin as a real Extension lifecycle object while preserving the existing independent Skill installer and SQLite schema.
+- **Single-Skill presentation**: Present a Plugin containing one Skill as an individual capability instead of an expert team.
+- **Frozen runtime boundary**: Codex remains responsible for selecting and executing Skills. PilotHub does not add MCP support, a multi-Agent runtime, or a workflow engine in this release.
+
+### Verified
+- **Plugin adapter lifecycle**: Automated tests cover valid inspection, path safety, unsupported components, marketplace registration, installation, diagnosis, complete uninstall, idempotency, and failure rollback.
+- **Public Plugin acceptance**: Installed `LiYeshu/wechat-content-expert-team` through PilotHub, confirmed all four Plugin Skills in a fresh Codex task, and produced a WeChat article, a 16:9 cover, and two inline illustrations.
+- **Full quality checks**: Frontend lint, unit tests, production build, Rust formatting, Clippy, and Rust unit tests pass.
+
+## [0.9.0-alpha.2] - 2026-07-29
+
+### Added
+- **First-launch guidance**: Introduces PilotHub through a three-step flow for discovering a capability, installing it to an Agent, and starting to use it.
+- **Quick install**: Recommended capabilities automatically detect installed Agents, select valid targets, and enter the installation flow.
+- **Installation success guidance**: Shows the installed Agent targets, project location, usage prompt, and next actions after installation.
+- **Capability cards**: Presents recommended Skills with plain-language names, use cases, categories, sources, and supported platforms.
+- **Installation diagnostics**: Checks GitHub connectivity, Agent detection, target-directory access, and Skill format with actionable recovery guidance.
+- **Local anonymous feedback**: Optionally records installation outcomes and normalized environment types. It is disabled by default, stored only on the device, and can be cleared at any time.
+
+### Changed
+- **Frozen Alpha capability boundary**: This release focuses on the journey from first launch to successful Skill use without adding MCP, Agent, Prompt, Hook, workflow, marketplace, or cloud-account support.
+- **Explicit privacy boundary**: Local feedback excludes repository URLs, Skill names, local paths, user content, project code, and raw errors, and includes no upload path.
+
+### Verified
+- **Full quality checks**: Frontend lint, unit tests, production build, Rust formatting, Clippy, and Rust unit tests all pass.
+- **Core acceptance path**: PilotHub installs and syncs `baoyu-cover-image` to Antigravity and Codex, and the Extensions page reports collection health and Agent targets.
+
 ## [0.9.0-alpha.1] - 2026-07-28
 
 ### Added
@@ -222,7 +259,9 @@ All notable changes to this project will be documented in this file.
 ### Performance
 - Git import and batch install optimizations: cached clones reduce repeated fetches; timeouts and non‑interactive git improve stability.
 
-[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...HEAD
+[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...HEAD
+[0.10.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.2...v0.10.0-alpha.1
+[0.9.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/skills-hub-baseline-2026-07-27...v0.9.0-alpha.1
 [0.8.0]: https://github.com/qufei1993/skills-hub/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/qufei1993/skills-hub/compare/v0.7.0...v0.7.1
