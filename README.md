@@ -2,23 +2,23 @@
 
 PilotHub is an AI Agent extension manager. It installs and configures Skills, MCP servers, Agents, Prompts, and Hooks for environments such as Claude Code and Codex.
 
-The first release focuses on one path:
+The current Alpha has two verified paths:
 
 ```text
-GitHub repository
-        ↓
-Discover and select a Skill
-        ↓
-Install it once
-        ↓
-Use it in Claude Code and Codex
+Independent Skill                 Skill-only Codex Plugin
+       ↓                                   ↓
+Discover and install              Inspect and validate
+       ↓                                   ↓
+Sync to Agent directories         Install as one Plugin
+       ↓                                   ↓
+Use in supported Agents           Use the expert team in Codex
 ```
 
 ## Project status
 
-PilotHub `0.9.0-alpha.2` focuses the verified Skills Hub v0.8.0 foundation on
-the complete first-use journey: understand an AI capability, install it to a
-detected Agent, diagnose failures, and start using it.
+PilotHub `0.10.0-alpha.1` adds a standard Codex Plugin lifecycle on top of the
+verified independent Skill workflow. A multi-Skill Plugin can now be installed,
+diagnosed, and removed as one Extension and presented as an AI expert team.
 
 Current implementation:
 
@@ -37,6 +37,11 @@ Current implementation:
 - Installation success guidance with the next action
 - Local installation diagnostics for GitHub, Agent targets, directories, and Skill format
 - Optional privacy-first product feedback stored only on the device
+- Standard Skill-only Codex Plugin inspection and validation
+- Atomic Plugin installation with failure rollback
+- Isolated `pilothub-local` Codex marketplace registration
+- Plugin diagnosis and complete lifecycle management
+- AI expert team presentation for multi-Skill Plugins
 
 Planned PilotHub capabilities:
 
@@ -47,13 +52,14 @@ Planned PilotHub capabilities:
 - Hooks
 - Additional package-manager adapters
 
-The existing `Skill` model remains the persisted core object during the Alpha.
-The native and Microsoft APM installation paths have passed end-to-end
-verification. PilotHub currently presents installed Skills as source-grouped
-Extension collections without changing the SQLite schema.
+The existing `Skill` model remains the persisted core object. Codex Plugins are
+managed through their standard manifest and Codex installation state without a
+new PilotHub database schema. The native Skill, Microsoft APM, and Skill-only
+Codex Plugin paths have passed end-to-end verification.
 
-Alpha.2 does not add MCP, Agent, Prompt, Hook, marketplace, workflow, or cloud
-account support. Its boundary remains the first successful Skill installation.
+This release does not add MCP support, a multi-Agent runtime, a workflow engine,
+an extension marketplace, or cloud accounts. Codex remains responsible for
+selecting and executing the Skills inside a Plugin.
 
 ## Architecture
 

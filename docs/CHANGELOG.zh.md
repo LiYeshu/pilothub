@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [0.10.0-alpha.1] - 2026-07-30
+
+### 新增
+- **Codex Plugin 生命周期**：支持从 GitHub 或本地目录检查、校验、安装、诊断和完整卸载标准 Skill-only Codex Plugin，并把 Plugin 作为统一生命周期对象管理。
+- **PilotHub 本地 Marketplace**：通过隔离的 `pilothub-local` Codex marketplace 注册 Plugin，不接管用户已有的个人或团队 marketplace。
+- **原子化 Plugin 安装**：激活前先暂存并校验 Plugin；Codex 注册或安装失败时自动回滚。
+- **Plugin 预览与管理**：安装前后可查看 manifest 元数据、包含的 Skills、能力、示例任务、来源、校验结果和安装状态。
+- **AI 专家团队体验**：多 Skill Plugin 以面向业务的专家团队展示，包括统筹角色、专业能力、示例任务和统一详情页。
+
+### 变更
+- **Extension 模型**：Codex Plugin 成为真实的 Extension 生命周期对象，同时保留既有独立 Skill 安装器和 SQLite schema。
+- **单 Skill 展示**：只包含一个 Skill 的 Plugin 显示为独立能力，不标记为专家团队。
+- **运行时边界冻结**：Skills 仍由 Codex 选择和执行；本版本不增加 MCP、多 Agent runtime 或工作流引擎。
+
+### 验证
+- **Plugin Adapter 生命周期**：自动化测试覆盖有效检查、路径安全、不支持组件拦截、marketplace 注册、安装、诊断、完整卸载、幂等性和失败回滚。
+- **公共 Plugin 业务验收**：通过 PilotHub 安装 `LiYeshu/wechat-content-expert-team`，新 Codex 任务发现全部四个 Plugin Skills，并成功生成公众号文章、一张 16:9 封面和两张正文配图。
+- **完整质量检查**：前端 lint、单元测试和生产构建，以及 Rust 格式、Clippy 和单元测试均通过。
+
 ## [0.9.0-alpha.2] - 2026-07-29
 
 ### 新增
@@ -239,6 +258,9 @@
 ### 性能
 - Git 导入/批量安装优化：缓存 clone 减少重复拉取；增加超时与无交互提示提升稳定性。
 
-[Unreleased]: https://github.com/qufei1993/skills-hub/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...HEAD
+[0.10.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.2...v0.10.0-alpha.1
+[0.9.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
+[0.9.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/skills-hub-baseline-2026-07-27...v0.9.0-alpha.1
 [0.8.0]: https://github.com/qufei1993/skills-hub/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/qufei1993/skills-hub/compare/v0.7.0...v0.7.1
