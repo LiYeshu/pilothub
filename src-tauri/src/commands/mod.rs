@@ -19,6 +19,10 @@ use crate::core::cache_cleanup::{
 };
 use crate::core::cancel_token::CancelToken;
 use crate::core::central_repo::{ensure_central_repo, resolve_central_repo_path};
+use crate::core::codex_plugins::{
+    CodexPluginAdapter, InstalledCodexPlugin, PluginInstallResult, PluginInstallationStatus,
+    PluginPreview, PluginSource,
+};
 use crate::core::content_hash::hash_dir;
 use crate::core::extensions::{map_skills_to_extensions, Extension};
 use crate::core::featured_skills::{fetch_featured_skills, FeaturedSkill};
@@ -82,6 +86,7 @@ fn format_anyhow_error(err: anyhow::Error) -> String {
         || first.starts_with("TOOL_NOT_INSTALLED|")
         || first.starts_with("MIGRATION_CONFLICT|")
         || first.starts_with("MIGRATION_VERIFY_FAILED|")
+        || first.starts_with("PLUGIN_INVALID|")
     {
         return first;
     }
@@ -1077,6 +1082,91 @@ pub async fn list_git_skills_cmd(
         .await
         .map_err(|err| err.to_string())?
         .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn inspect_codex_plugin(
+    store: State<'_, SkillStore>,
+    sourceType: String,
+    sourceRef: String,
+) -> Result<PluginPreview, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("home directory is unavailable")?;
+        let adapter = CodexPluginAdapter::from_home(&home)?;
+        let proxy_url = get_github_proxy_url_core(&store)?;
+        adapter.inspect(
+            &PluginSource {
+                source_type: sourceType,
+                source_ref: sourceRef,
+            },
+            Some(&proxy_url),
+        )
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn install_codex_plugin(
+    store: State<'_, SkillStore>,
+    sourceType: String,
+    sourceRef: String,
+) -> Result<PluginInstallResult, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("home directory is unavailable")?;
+        let adapter = CodexPluginAdapter::from_home(&home)?;
+        let proxy_url = get_github_proxy_url_core(&store)?;
+        adapter.install(
+            &PluginSource {
+                source_type: sourceType,
+                source_ref: sourceRef,
+            },
+            Some(&proxy_url),
+        )
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+pub async fn list_codex_plugins() -> Result<Vec<InstalledCodexPlugin>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("home directory is unavailable")?;
+        CodexPluginAdapter::from_home(&home)?.list()
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn doctor_codex_plugin(pluginName: String) -> Result<PluginInstallationStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("home directory is unavailable")?;
+        CodexPluginAdapter::from_home(&home)?.doctor(&pluginName)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn uninstall_codex_plugin(pluginName: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("home directory is unavailable")?;
+        CodexPluginAdapter::from_home(&home)?.uninstall(&pluginName)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
 }
 
 #[tauri::command]
