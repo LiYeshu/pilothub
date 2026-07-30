@@ -2,11 +2,18 @@ import { memo } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
+  Bot,
   FolderOpen,
   GitBranch,
+  MessageSquareText,
   PackageOpen,
+  UsersRound,
 } from 'lucide-react'
 import type { TFunction } from 'i18next'
+import {
+  formatSkillDisplayName,
+  formatSkillPurpose,
+} from '../skillPresentation'
 import type { PluginPreview } from '../types'
 
 type PluginInstallModalProps = {
@@ -41,6 +48,7 @@ const PluginInstallModal = ({
   if (!open) return null
 
   const canPreview = sourceRef.trim().length > 0 && !loading
+  const isExpertTeam = (preview?.descriptor.skills.length ?? 0) > 1
 
   return (
     <div
@@ -132,9 +140,18 @@ const PluginInstallModal = ({
             <section className="plugin-preview-panel">
               <div className="plugin-preview-heading">
                 <span className="extension-icon" aria-hidden="true">
-                  <PackageOpen size={20} />
+                  {isExpertTeam ? (
+                    <UsersRound size={20} />
+                  ) : (
+                    <PackageOpen size={20} />
+                  )}
                 </span>
                 <div>
+                  <span className="plugin-product-kind">
+                    {isExpertTeam
+                      ? t('plugins.expertTeam')
+                      : t('plugins.aiCapability')}
+                  </span>
                   <h3>{preview.descriptor.display_name}</h3>
                   <code>{preview.descriptor.name}</code>
                 </div>
@@ -161,14 +178,41 @@ const PluginInstallModal = ({
                   <dd>{preview.descriptor.skills.length}</dd>
                 </div>
               </dl>
-              <div className="plugin-skill-preview">
-                {preview.descriptor.skills.map((skill) => (
-                  <div key={skill.relative_path}>
-                    <strong>{skill.name}</strong>
-                    <span>{skill.description ?? t('skillDescriptionEmpty')}</span>
-                  </div>
-                ))}
+              <div className="plugin-preview-section-heading">
+                <Bot size={16} aria-hidden="true" />
+                <strong>{t('plugins.professionalCapabilities')}</strong>
+                <span>{preview.descriptor.skills.length}</span>
               </div>
+              <div className="plugin-skill-preview">
+                {preview.descriptor.skills.map((skill) => {
+                  const displayName = formatSkillDisplayName(skill.name)
+                  return (
+                    <div key={skill.relative_path}>
+                      <strong>{displayName}</strong>
+                      {displayName !== skill.name ? <code>{skill.name}</code> : null}
+                      <span>
+                        {formatSkillPurpose(
+                          skill.description,
+                          t('skillPresentation.fallbackPurpose', {
+                            name: displayName,
+                          }),
+                        )}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              {preview.descriptor.default_prompts.length > 0 ? (
+                <div className="plugin-preview-prompts">
+                  <div className="plugin-preview-section-heading">
+                    <MessageSquareText size={16} aria-hidden="true" />
+                    <strong>{t('plugins.exampleTasks')}</strong>
+                  </div>
+                  {preview.descriptor.default_prompts.map((prompt) => (
+                    <p key={prompt}>{prompt}</p>
+                  ))}
+                </div>
+              ) : null}
               {preview.validation.errors.map((item) => (
                 <div className="plugin-validation error" key={item.code}>
                   <AlertTriangle size={16} />

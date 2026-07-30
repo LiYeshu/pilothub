@@ -30,6 +30,7 @@ import ImportModal from './components/skills/modals/ImportModal'
 import InstallSuccessModal from './components/skills/modals/InstallSuccessModal'
 import InstallDiagnosticsModal from './components/skills/modals/InstallDiagnosticsModal'
 import NewToolsModal from './components/skills/modals/NewToolsModal'
+import PluginDetailModal from './components/skills/modals/PluginDetailModal'
 import PluginInstallModal from './components/skills/modals/PluginInstallModal'
 import PluginUninstallModal from './components/skills/modals/PluginUninstallModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
@@ -163,6 +164,8 @@ function App() {
   const [pluginSourceRef, setPluginSourceRef] = useState('')
   const [pluginPreview, setPluginPreview] = useState<PluginPreview | null>(null)
   const [pendingPluginUninstall, setPendingPluginUninstall] =
+    useState<InstalledCodexPlugin | null>(null)
+  const [selectedPluginDetail, setSelectedPluginDetail] =
     useState<InstalledCodexPlugin | null>(null)
   const [localPath, setLocalPath] = useState('')
   const [localName, setLocalName] = useState('')
@@ -3953,6 +3956,7 @@ function App() {
             managedSkills={managedSkills}
             tools={tools}
             onOpenSkill={handleOpenExtensionSkill}
+            onOpenPlugin={setSelectedPluginDetail}
             onAddPlugin={handleOpenPluginInstall}
             onDoctorPlugin={(pluginName) => void handleDoctorPlugin(pluginName)}
             onUninstallPlugin={setPendingPluginUninstall}
@@ -4239,6 +4243,12 @@ function App() {
         onPickLocalPath={() => void handlePickPluginPath()}
         onPreview={() => void handlePreviewPlugin()}
         onInstall={() => void handleInstallPlugin()}
+        t={t}
+      />
+
+      <PluginDetailModal
+        plugin={selectedPluginDetail}
+        onRequestClose={() => setSelectedPluginDetail(null)}
         t={t}
       />
 
