@@ -109,6 +109,67 @@ export type Extension = {
   components: ExtensionComponent[]
 }
 
+export type PluginSource = {
+  source_type: 'local' | 'git' | 'managed' | string
+  source_ref: string
+}
+
+export type PluginSkillDescriptor = {
+  name: string
+  description?: string | null
+  relative_path: string
+}
+
+export type CodexPluginDescriptor = {
+  name: string
+  display_name: string
+  version: string
+  description: string
+  author?: string | null
+  license?: string | null
+  source: PluginSource
+  manifest_path: string
+  skills: PluginSkillDescriptor[]
+  capabilities: string[]
+  default_prompts: string[]
+}
+
+export type PluginValidationItem = {
+  code: string
+  message: string
+}
+
+export type PluginPreview = {
+  descriptor: CodexPluginDescriptor
+  validation: {
+    valid: boolean
+    errors: PluginValidationItem[]
+    warnings: PluginValidationItem[]
+  }
+}
+
+export type PluginInstallationStatus = {
+  plugin_name: string
+  marketplace_name: string
+  target: 'codex' | string
+  installed: boolean
+  enabled: boolean
+  version: string
+  installed_path?: string | null
+  health: 'healthy' | 'warning' | 'error' | string
+  detail?: string | null
+}
+
+export type InstalledCodexPlugin = {
+  descriptor: CodexPluginDescriptor
+  status: PluginInstallationStatus
+}
+
+export type PluginInstallResult = {
+  descriptor: CodexPluginDescriptor
+  status: PluginInstallationStatus
+}
+
 export type LocalSkillCandidate = {
   name: string
   description?: string | null

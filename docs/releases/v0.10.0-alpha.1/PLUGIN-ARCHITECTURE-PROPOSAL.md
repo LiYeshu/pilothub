@@ -238,12 +238,18 @@ Alpha.1 只支持当前用户的本地 Codex 环境。PilotHub 使用独立 mark
 ```text
 ~/.pilothub/
 └── codex/
-    ├── marketplace.json
+    ├── .agents/
+    │   └── plugins/
+    │       └── marketplace.json
     ├── plugins/
     │   └── wechat-content-plugin/
     ├── staging/
     └── backups/
 ```
+
+PR #40 核对当前 Codex CLI 后，将 marketplace 文件调整到官方支持的
+`<marketplace-root>/.agents/plugins/marketplace.json` 位置；注册时传入
+`~/.pilothub/codex` 作为 marketplace root。
 
 marketplace 固定名称：
 

@@ -19,17 +19,28 @@ pub struct StorageLayout {
     pub logs: PathBuf,
     pub config: PathBuf,
     pub backups: PathBuf,
+    pub codex: PathBuf,
+    pub codex_plugins: PathBuf,
+    pub codex_staging: PathBuf,
+    pub codex_backups: PathBuf,
+    pub codex_marketplace: PathBuf,
 }
 
 impl StorageLayout {
     pub fn from_home(home: &Path) -> Self {
         let root = home.join(PILOTHUB_DIR_NAME);
+        let codex = root.join("codex");
         Self {
             extensions: root.join("extensions"),
             cache: root.join("cache"),
             logs: root.join("logs"),
             config: root.join("config"),
             backups: root.join("backups"),
+            codex_plugins: codex.join("plugins"),
+            codex_staging: codex.join("staging"),
+            codex_backups: codex.join("backups"),
+            codex_marketplace: codex.join(".agents/plugins/marketplace.json"),
+            codex,
             root,
         }
     }
@@ -41,6 +52,9 @@ impl StorageLayout {
             &self.logs,
             &self.config,
             &self.backups,
+            &self.codex_plugins,
+            &self.codex_staging,
+            &self.codex_backups,
         ] {
             std::fs::create_dir_all(path)
                 .with_context(|| format!("create PilotHub storage directory {:?}", path))?;
