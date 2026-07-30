@@ -4,10 +4,20 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
+  Eye,
   PackageOpen,
+  Plus,
+  Stethoscope,
+  Trash2,
+  UsersRound,
 } from 'lucide-react'
 import type { TFunction } from 'i18next'
-import type { Extension, ManagedSkill, ToolOption } from './types'
+import type {
+  Extension,
+  InstalledCodexPlugin,
+  ManagedSkill,
+  ToolOption,
+} from './types'
 import {
   resolveExtensionSkills,
   summarizeExtensionStatus,
@@ -20,17 +30,27 @@ import {
 
 type ExtensionsPageProps = {
   extensions: Extension[]
+  codexPlugins: InstalledCodexPlugin[]
   managedSkills: ManagedSkill[]
   tools: ToolOption[]
   onOpenSkill: (skill: ManagedSkill) => void
+  onOpenPlugin: (plugin: InstalledCodexPlugin) => void
+  onAddPlugin: () => void
+  onDoctorPlugin: (pluginName: string) => void
+  onUninstallPlugin: (plugin: InstalledCodexPlugin) => void
   t: TFunction
 }
 
 const ExtensionsPage = ({
   extensions,
+  codexPlugins,
   managedSkills,
   tools,
   onOpenSkill,
+  onOpenPlugin,
+  onAddPlugin,
+  onDoctorPlugin,
+  onUninstallPlugin,
   t,
 }: ExtensionsPageProps) => (
   <div className="extensions-page">
@@ -39,20 +59,150 @@ const ExtensionsPage = ({
         <h1>{t('extensions.title')}</h1>
         <p>{t('extensions.subtitle')}</p>
       </div>
-      <div className="extensions-summary" aria-label={t('extensions.summary')}>
-        <Boxes size={18} />
-        <strong>{extensions.length}</strong>
-        <span>{t('extensions.collections')}</span>
+      <div className="extensions-header-actions">
+        <div className="extensions-summary" aria-label={t('extensions.summary')}>
+          <Boxes size={18} />
+          <strong>{extensions.length + codexPlugins.length}</strong>
+          <span>{t('extensions.collections')}</span>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={onAddPlugin}>
+          <Plus size={16} />
+          {t('plugins.add')}
+        </button>
       </div>
     </header>
 
-    {extensions.length === 0 ? (
+    {codexPlugins.length > 0 ? (
+      <section className="codex-plugin-section" aria-labelledby="codex-plugins-title">
+        <div className="extension-section-heading">
+          <div>
+            <h2 id="codex-plugins-title">{t('plugins.sectionTitle')}</h2>
+            <p>{t('plugins.sectionSubtitle')}</p>
+          </div>
+          <span>{t('plugins.pluginCount', { count: codexPlugins.length })}</span>
+        </div>
+        <div className="codex-plugin-list">
+          {codexPlugins.map((plugin) => {
+            const isExpertTeam = plugin.descriptor.skills.length > 1
+            const visibleSkills = plugin.descriptor.skills.slice(0, 4)
+            const remainingSkillCount =
+              plugin.descriptor.skills.length - visibleSkills.length
+            return (
+              <article className="codex-plugin-card" key={plugin.descriptor.name}>
+                <div className="codex-plugin-header">
+                  <div className="extension-identity">
+                    <span className="extension-icon" aria-hidden="true">
+                      {isExpertTeam ? (
+                        <UsersRound size={20} />
+                      ) : (
+                        <PackageOpen size={20} />
+                      )}
+                    </span>
+                    <div>
+                      <span className="plugin-product-kind">
+                        {isExpertTeam
+                          ? t('plugins.expertTeam')
+                          : t('plugins.aiCapability')}
+                      </span>
+                      <h3>{plugin.descriptor.display_name}</h3>
+                      <p>
+                        <code>{plugin.descriptor.name}</code>
+                        <span>v{plugin.descriptor.version}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`extension-health ${
+                      plugin.status.health === 'healthy'
+                        ? 'healthy'
+                        : 'attention'
+                    }`}
+                  >
+                    {plugin.status.health === 'healthy' ? (
+                      <CircleCheck size={15} aria-hidden="true" />
+                    ) : (
+                      <CircleAlert size={15} aria-hidden="true" />
+                    )}
+                    {plugin.status.health === 'healthy'
+                      ? t('extensions.healthy')
+                      : t('extensions.attention')}
+                  </span>
+                </div>
+                <p className="codex-plugin-description">
+                  {plugin.descriptor.description}
+                </p>
+                <div className="codex-plugin-meta">
+                  <span>{t('plugins.runtime')}: Codex</span>
+                  <span>
+                    {isExpertTeam
+                      ? t('plugins.specialistCount', {
+                          count: plugin.descriptor.skills.length,
+                        })
+                      : t('plugins.capabilityCount', {
+                          count: plugin.descriptor.skills.length,
+                        })}
+                  </span>
+                  <span>{t('plugins.managedByPilotHub')}</span>
+                </div>
+                <div
+                  className="codex-plugin-skills"
+                  aria-label={t('plugins.professionalCapabilities')}
+                >
+                  {visibleSkills.map((skill) => (
+                    <span key={skill.relative_path}>
+                      {formatSkillDisplayName(skill.name)}
+                    </span>
+                  ))}
+                  {remainingSkillCount > 0 ? (
+                    <span>
+                      {t('plugins.moreCapabilities', {
+                        count: remainingSkillCount,
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="codex-plugin-actions">
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={() => onOpenPlugin(plugin)}
+                  >
+                    <Eye size={15} />
+                    {isExpertTeam
+                      ? t('plugins.viewExpertTeam')
+                      : t('plugins.viewCapability')}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => onDoctorPlugin(plugin.descriptor.name)}
+                  >
+                    <Stethoscope size={15} />
+                    {t('plugins.doctor')}
+                  </button>
+                  <button
+                    className="btn btn-secondary danger"
+                    type="button"
+                    onClick={() => onUninstallPlugin(plugin)}
+                  >
+                    <Trash2 size={15} />
+                    {t('plugins.uninstall')}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </section>
+    ) : null}
+
+    {extensions.length === 0 && codexPlugins.length === 0 ? (
       <div className="extensions-empty">
         <PackageOpen size={28} />
         <strong>{t('extensions.emptyTitle')}</strong>
         <span>{t('extensions.emptyBody')}</span>
       </div>
-    ) : (
+    ) : extensions.length > 0 ? (
       <div className="extension-collection-list">
         {extensions.map((extension) => {
           const skills = resolveExtensionSkills(extension, managedSkills)
@@ -178,7 +328,7 @@ const ExtensionsPage = ({
           )
         })}
       </div>
-    )}
+    ) : null}
   </div>
 )
 

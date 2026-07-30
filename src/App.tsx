@@ -30,6 +30,9 @@ import ImportModal from './components/skills/modals/ImportModal'
 import InstallSuccessModal from './components/skills/modals/InstallSuccessModal'
 import InstallDiagnosticsModal from './components/skills/modals/InstallDiagnosticsModal'
 import NewToolsModal from './components/skills/modals/NewToolsModal'
+import PluginDetailModal from './components/skills/modals/PluginDetailModal'
+import PluginInstallModal from './components/skills/modals/PluginInstallModal'
+import PluginUninstallModal from './components/skills/modals/PluginUninstallModal'
 import ScopeSyncModal from './components/skills/modals/ScopeSyncModal'
 import SharedDirModal from './components/skills/modals/SharedDirModal'
 import StorageMigrationModal from './components/skills/modals/StorageMigrationModal'
@@ -74,6 +77,7 @@ import type {
   GithubProxyConfigDto,
   InstallResultDto,
   InstallDiagnosticsDto,
+  InstalledCodexPlugin,
   LocalSkillCandidate,
   ManagedSkill,
   OnboardingPlan,
@@ -85,6 +89,9 @@ import type {
   ToolOption,
   ToolStatusDto,
   UpdateResultDto,
+  PluginInstallResult,
+  PluginInstallationStatus,
+  PluginPreview,
 } from './components/skills/types'
 
 type SkillScopeState = Record<
@@ -150,6 +157,16 @@ function App() {
     useState<string | null>(null)
   const [managedSkills, setManagedSkills] = useState<ManagedSkill[]>([])
   const [extensions, setExtensions] = useState<Extension[]>([])
+  const [codexPlugins, setCodexPlugins] = useState<InstalledCodexPlugin[]>([])
+  const [showPluginInstall, setShowPluginInstall] = useState(false)
+  const [pluginLoading, setPluginLoading] = useState(false)
+  const [pluginSourceType, setPluginSourceType] = useState<'local' | 'git'>('git')
+  const [pluginSourceRef, setPluginSourceRef] = useState('')
+  const [pluginPreview, setPluginPreview] = useState<PluginPreview | null>(null)
+  const [pendingPluginUninstall, setPendingPluginUninstall] =
+    useState<InstalledCodexPlugin | null>(null)
+  const [selectedPluginDetail, setSelectedPluginDetail] =
+    useState<InstalledCodexPlugin | null>(null)
   const [localPath, setLocalPath] = useState('')
   const [localName, setLocalName] = useState('')
   const [gitUrl, setGitUrl] = useState('')
@@ -308,6 +325,15 @@ function App() {
         const tool = raw.split('|')[1] ?? ''
         return t('projectSync.unsupportedTool', { tool })
       }
+      if (raw.startsWith('PLUGIN_INVALID|')) {
+        return t('plugins.errors.invalid')
+      }
+      if (raw.includes('Codex CLI was not found')) {
+        return t('plugins.errors.codexMissing')
+      }
+      if (raw.includes('.codex-plugin/plugin.json')) {
+        return t('plugins.errors.manifestMissing')
+      }
       if (raw.includes('未在该仓库中发现可导入的 Skills')) {
         return t('errors.noSkillsFoundInRepo')
       }
@@ -421,12 +447,14 @@ function App() {
 
   const loadManagedSkills = useCallback(async () => {
     try {
-      const [skillsResult, extensionsResult] = await Promise.all([
+      const [skillsResult, extensionsResult, pluginsResult] = await Promise.all([
         invokeTauri<ManagedSkill[]>('get_managed_skills'),
         invokeTauri<Extension[]>('get_extensions'),
+        invokeTauri<InstalledCodexPlugin[]>('list_codex_plugins'),
       ])
       setManagedSkills(skillsResult)
       setExtensions(extensionsResult)
+      setCodexPlugins(pluginsResult)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -1395,6 +1423,156 @@ function App() {
     setDetailReturnView('extensions')
     setActiveView('detail')
   }, [])
+
+  const handleOpenPluginInstall = useCallback(() => {
+    setPluginSourceType('git')
+    setPluginSourceRef('')
+    setPluginPreview(null)
+    setShowPluginInstall(true)
+  }, [])
+
+  const handleClosePluginInstall = useCallback(() => {
+    if (pluginLoading) return
+    setShowPluginInstall(false)
+    setPluginPreview(null)
+  }, [pluginLoading])
+
+  const handlePluginSourceTypeChange = useCallback(
+    (sourceType: 'local' | 'git') => {
+      setPluginSourceType(sourceType)
+      setPluginSourceRef('')
+      setPluginPreview(null)
+    },
+    [],
+  )
+
+  const handlePluginSourceRefChange = useCallback((sourceRef: string) => {
+    setPluginSourceRef(sourceRef)
+    setPluginPreview(null)
+  }, [])
+
+  const handlePickPluginPath = useCallback(async () => {
+    try {
+      if (!isTauri) {
+        throw new Error(t('errors.notTauri'))
+      }
+      const { open } = await import('@tauri-apps/plugin-dialog')
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: t('plugins.selectFolder'),
+      })
+      if (!selected || Array.isArray(selected)) return
+      setPluginSourceRef(selected)
+      setPluginPreview(null)
+    } catch (err) {
+      toast.error(formatErrorMessage(err instanceof Error ? err.message : String(err)))
+    }
+  }, [formatErrorMessage, isTauri, t])
+
+  const handlePreviewPlugin = useCallback(async () => {
+    if (!pluginSourceRef.trim()) return
+    setPluginLoading(true)
+    try {
+      const preview = await invokeTauri<PluginPreview>('inspect_codex_plugin', {
+        sourceType: pluginSourceType,
+        sourceRef: pluginSourceRef.trim(),
+      })
+      setPluginPreview(preview)
+    } catch (err) {
+      setPluginPreview(null)
+      toast.error(formatErrorMessage(err instanceof Error ? err.message : String(err)))
+    } finally {
+      setPluginLoading(false)
+    }
+  }, [
+    formatErrorMessage,
+    invokeTauri,
+    pluginSourceRef,
+    pluginSourceType,
+  ])
+
+  const handleInstallPlugin = useCallback(async () => {
+    if (!pluginPreview?.validation.valid) return
+    setPluginLoading(true)
+    try {
+      const result = await invokeTauri<PluginInstallResult>(
+        'install_codex_plugin',
+        {
+          sourceType: pluginSourceType,
+          sourceRef: pluginSourceRef.trim(),
+        },
+      )
+      await loadManagedSkills()
+      setShowPluginInstall(false)
+      setPluginPreview(null)
+      toast.success(
+        t('plugins.installSuccess', {
+          name: result.descriptor.display_name,
+        }),
+      )
+    } catch (err) {
+      toast.error(formatErrorMessage(err instanceof Error ? err.message : String(err)))
+    } finally {
+      setPluginLoading(false)
+    }
+  }, [
+    formatErrorMessage,
+    invokeTauri,
+    loadManagedSkills,
+    pluginPreview,
+    pluginSourceRef,
+    pluginSourceType,
+    t,
+  ])
+
+  const handleDoctorPlugin = useCallback(
+    async (pluginName: string) => {
+      setPluginLoading(true)
+      try {
+        const status = await invokeTauri<PluginInstallationStatus>(
+          'doctor_codex_plugin',
+          { pluginName },
+        )
+        if (status.health === 'healthy') {
+          toast.success(t('plugins.doctorHealthy', { name: pluginName }))
+        } else {
+          toast.warning(
+            status.detail ?? t('plugins.doctorAttention', { name: pluginName }),
+          )
+        }
+      } catch (err) {
+        toast.error(formatErrorMessage(err instanceof Error ? err.message : String(err)))
+      } finally {
+        setPluginLoading(false)
+      }
+    },
+    [formatErrorMessage, invokeTauri, t],
+  )
+
+  const handleConfirmPluginUninstall = useCallback(async () => {
+    if (!pendingPluginUninstall) return
+    setPluginLoading(true)
+    try {
+      await invokeTauri<void>('uninstall_codex_plugin', {
+        pluginName: pendingPluginUninstall.descriptor.name,
+      })
+      const displayName = pendingPluginUninstall.descriptor.display_name
+      setPendingPluginUninstall(null)
+      await loadManagedSkills()
+      toast.success(t('plugins.uninstallSuccess', { name: displayName }))
+    } catch (err) {
+      toast.error(formatErrorMessage(err instanceof Error ? err.message : String(err)))
+    } finally {
+      setPluginLoading(false)
+    }
+  }, [
+    formatErrorMessage,
+    invokeTauri,
+    loadManagedSkills,
+    pendingPluginUninstall,
+    t,
+  ])
 
   const handleBackToList = useCallback(() => {
     setDetailSkill(null)
@@ -3747,7 +3925,7 @@ function App() {
         activeView={activeView}
         detailParent={detailReturnView}
         managementTab={managementTab}
-        extensionCount={extensions.length}
+        extensionCount={extensions.length + codexPlugins.length}
         skillCount={managedSkills.length}
         tagCount={tags.length}
         toolCount={toolStatus?.tools.length ?? 0}
@@ -3774,9 +3952,14 @@ function App() {
         ) : activeView === 'extensions' ? (
           <ExtensionsPage
             extensions={extensions}
+            codexPlugins={codexPlugins}
             managedSkills={managedSkills}
             tools={tools}
             onOpenSkill={handleOpenExtensionSkill}
+            onOpenPlugin={setSelectedPluginDetail}
+            onAddPlugin={handleOpenPluginInstall}
+            onDoctorPlugin={(pluginName) => void handleDoctorPlugin(pluginName)}
+            onUninstallPlugin={setPendingPluginUninstall}
             t={t}
           />
         ) : activeView === 'myskills' ? (
@@ -4045,6 +4228,35 @@ function App() {
         onSubmit={addModalTab === 'local' ? handleCreateLocal : handleCreateGit}
         onDiagnose={() => void handleRunInstallDiagnostics()}
         onPreviewApm={() => void handlePreviewApmInstall()}
+        t={t}
+      />
+
+      <PluginInstallModal
+        open={showPluginInstall}
+        loading={pluginLoading}
+        sourceType={pluginSourceType}
+        sourceRef={pluginSourceRef}
+        preview={pluginPreview}
+        onRequestClose={handleClosePluginInstall}
+        onSourceTypeChange={handlePluginSourceTypeChange}
+        onSourceRefChange={handlePluginSourceRefChange}
+        onPickLocalPath={() => void handlePickPluginPath()}
+        onPreview={() => void handlePreviewPlugin()}
+        onInstall={() => void handleInstallPlugin()}
+        t={t}
+      />
+
+      <PluginDetailModal
+        plugin={selectedPluginDetail}
+        onRequestClose={() => setSelectedPluginDetail(null)}
+        t={t}
+      />
+
+      <PluginUninstallModal
+        plugin={pendingPluginUninstall}
+        loading={pluginLoading}
+        onRequestClose={() => setPendingPluginUninstall(null)}
+        onConfirm={() => void handleConfirmPluginUninstall()}
         t={t}
       />
 

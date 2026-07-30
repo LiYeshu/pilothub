@@ -1658,7 +1658,9 @@ fn parse_skill_md(path: &Path) -> Option<(String, Option<String>)> {
     parse_skill_md_with_reason(path).ok()
 }
 
-fn parse_skill_md_with_reason(path: &Path) -> Result<(String, Option<String>), &'static str> {
+pub(crate) fn parse_skill_md_with_reason(
+    path: &Path,
+) -> Result<(String, Option<String>), &'static str> {
     let text = std::fs::read_to_string(path).map_err(|_| "read_failed")?;
     let lines: Vec<&str> = text.lines().collect();
     if lines.first().map(|v| v.trim()) != Some("---") {

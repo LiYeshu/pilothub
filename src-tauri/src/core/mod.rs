@@ -2,6 +2,7 @@ pub mod auto_update;
 pub mod cache_cleanup;
 pub mod cancel_token;
 pub mod central_repo;
+pub mod codex_plugins;
 pub mod content_hash;
 pub mod extensions;
 pub mod featured_skills;

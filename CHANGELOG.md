@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0-alpha.1] - 2026-07-30
+
+### Added
+- **Codex Plugin lifecycle**: Inspect, validate, install, diagnose, and uninstall standard Skill-only Codex Plugins from GitHub or local directories as one lifecycle object.
+- **PilotHub local marketplace**: Register installed Plugins through an isolated `pilothub-local` Codex marketplace without taking over a user's existing marketplaces.
+- **Atomic Plugin installation**: Stage and validate Plugin contents before activation, with rollback when Codex registration or installation fails.
+- **Plugin preview and management**: Preview manifest metadata, included Skills, capabilities, prompts, source, validation results, and installation status before and after installation.
+- **AI expert team experience**: Present multi-Skill Plugins as business-focused expert teams with an orchestrating role, specialist capabilities, example tasks, and a unified detail view.
+
+### Changed
+- **Extension model**: Treat a Codex Plugin as a real Extension lifecycle object while preserving the existing independent Skill installer and SQLite schema.
+- **Single-Skill presentation**: Present a Plugin containing one Skill as an individual capability instead of an expert team.
+- **Frozen runtime boundary**: Codex remains responsible for selecting and executing Skills. PilotHub does not add MCP support, a multi-Agent runtime, or a workflow engine in this release.
+
+### Verified
+- **Plugin adapter lifecycle**: Automated tests cover valid inspection, path safety, unsupported components, marketplace registration, installation, diagnosis, complete uninstall, idempotency, and failure rollback.
+- **Public Plugin acceptance**: Installed `LiYeshu/wechat-content-expert-team` through PilotHub, confirmed all four Plugin Skills in a fresh Codex task, and produced a WeChat article, a 16:9 cover, and two inline illustrations.
+- **Full quality checks**: Frontend lint, unit tests, production build, Rust formatting, Clippy, and Rust unit tests pass.
+
 ## [0.9.0-alpha.2] - 2026-07-29
 
 ### Added
@@ -240,7 +259,9 @@ All notable changes to this project will be documented in this file.
 ### Performance
 - Git import and batch install optimizations: cached clones reduce repeated fetches; timeouts and non‑interactive git improve stability.
 
-[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...HEAD
+[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...HEAD
+[0.10.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.2...v0.10.0-alpha.1
+[0.9.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/skills-hub-baseline-2026-07-27...v0.9.0-alpha.1
 [0.8.0]: https://github.com/qufei1993/skills-hub/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/qufei1993/skills-hub/compare/v0.7.0...v0.7.1
