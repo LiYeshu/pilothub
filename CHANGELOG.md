@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Codex Skills catalog launcher**: Expose each PilotHub-managed Codex Plugin as one standalone launcher Skill so expert teams appear in the Codex Skills catalog without duplicating their namespaced specialist Skills.
+
+### Changed
+- **Plugin lifecycle coverage**: Install, repair, diagnose, update, roll back, and uninstall the catalog launcher together with its owning Plugin, while refusing to overwrite user-owned Skills with the same name.
+
 ## [0.10.0-alpha.1] - 2026-07-30
 
 ### Added

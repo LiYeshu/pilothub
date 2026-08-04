@@ -32,6 +32,11 @@ fn local_source(root: &std::path::Path) -> PluginSource {
     }
 }
 
+fn test_adapter(temp: &TempDir) -> CodexPluginAdapter {
+    CodexPluginAdapter::from_home_with_codex_home(temp.path(), &temp.path().join("codex-home"))
+        .unwrap()
+}
+
 #[cfg(unix)]
 fn success_status() -> ExitStatus {
     use std::os::unix::process::ExitStatusExt;
@@ -255,7 +260,7 @@ fn rejects_plugin_paths_that_escape_the_root() {
 #[test]
 fn writes_a_valid_pilothub_marketplace_entry() {
     let temp = TempDir::new().unwrap();
-    let adapter = CodexPluginAdapter::from_home(temp.path()).unwrap();
+    let adapter = test_adapter(&temp);
     let root = temp.path().join("sample-plugin");
     write_plugin(
         &root,
@@ -288,7 +293,7 @@ fn writes_a_valid_pilothub_marketplace_entry() {
 #[test]
 fn installs_diagnoses_and_uninstalls_as_one_plugin() {
     let temp = TempDir::new().unwrap();
-    let adapter = CodexPluginAdapter::from_home(temp.path()).unwrap();
+    let adapter = test_adapter(&temp);
     let root = temp.path().join("sample-plugin");
     write_plugin(
         &root,
@@ -315,15 +320,33 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
         .codex_plugins
         .join("sample-plugin/.codex-plugin/plugin.json")
         .exists());
+    let launcher = adapter.codex_skills.join("pilothub-sample-plugin");
+    assert!(launcher.join("SKILL.md").exists());
+    assert!(launcher.join("agents/openai.yaml").exists());
+    assert!(
+        fs::read_to_string(launcher.join(".pilothub-plugin-launcher.json"))
+            .unwrap()
+            .contains("\"plugin_name\": \"sample-plugin\"")
+    );
     let installed = adapter.list_with_runner(&runner).unwrap();
     assert_eq!(installed.len(), 1);
     assert_eq!(installed[0].status.health, "healthy");
+    assert!(installed[0].status.catalog.visible);
+    assert_eq!(
+        installed[0].status.catalog.skill_name,
+        "pilothub-sample-plugin"
+    );
+    fs::remove_dir_all(&launcher).unwrap();
+    let repaired = adapter.list_with_runner(&runner).unwrap();
+    assert!(repaired[0].status.catalog.visible);
+    assert!(launcher.join("SKILL.md").exists());
 
     adapter
         .uninstall_with_runner("sample-plugin", &runner)
         .unwrap();
 
     assert!(!adapter.layout.codex_plugins.join("sample-plugin").exists());
+    assert!(!launcher.exists());
     let marketplace = read_marketplace(&adapter.layout.codex_marketplace).unwrap();
     assert_eq!(marketplace["plugins"].as_array().unwrap().len(), 0);
 }
@@ -331,7 +354,7 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
 #[test]
 fn rolls_back_files_and_marketplace_when_codex_install_fails() {
     let temp = TempDir::new().unwrap();
-    let adapter = CodexPluginAdapter::from_home(temp.path()).unwrap();
+    let adapter = test_adapter(&temp);
     let root = temp.path().join("sample-plugin");
     write_plugin(
         &root,
@@ -358,4 +381,77 @@ fn rolls_back_files_and_marketplace_when_codex_install_fails() {
         .unwrap()
         .iter()
         .any(|args| args.join(" ").starts_with("plugin marketplace remove ")));
+    assert!(!adapter.codex_skills.join("pilothub-sample-plugin").exists());
+}
+
+#[test]
+fn failed_plugin_update_preserves_the_existing_catalog_launcher() {
+    let temp = TempDir::new().unwrap();
+    let adapter = test_adapter(&temp);
+    let root = temp.path().join("sample-plugin");
+    write_plugin(
+        &root,
+        r#"{
+          "name": "sample-plugin",
+          "version": "1.0.0",
+          "description": "Sample",
+          "skills": "./skills/"
+        }"#,
+        &[("sample-skill", "Run the sample workflow")],
+    );
+    adapter
+        .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
+        .unwrap();
+    let launcher = adapter.codex_skills.join("pilothub-sample-plugin");
+    let original = fs::read_to_string(launcher.join("SKILL.md")).unwrap();
+
+    let error = adapter
+        .install_with_runner(
+            &local_source(&root),
+            None,
+            &FakeCodexRunner::failing_install(),
+        )
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("simulated install failure"));
+    assert_eq!(
+        fs::read_to_string(launcher.join("SKILL.md")).unwrap(),
+        original
+    );
+    assert!(adapter
+        .layout
+        .codex_plugins
+        .join("sample-plugin/.codex-plugin/plugin.json")
+        .exists());
+}
+
+#[test]
+fn refuses_to_overwrite_an_unmanaged_catalog_skill() {
+    let temp = TempDir::new().unwrap();
+    let adapter = test_adapter(&temp);
+    let root = temp.path().join("sample-plugin");
+    write_plugin(
+        &root,
+        r#"{
+          "name": "sample-plugin",
+          "version": "1.0.0",
+          "description": "Sample",
+          "skills": "./skills/"
+        }"#,
+        &[("sample-skill", "Run the sample workflow")],
+    );
+    let launcher = adapter.codex_skills.join("pilothub-sample-plugin");
+    fs::create_dir_all(&launcher).unwrap();
+    fs::write(launcher.join("SKILL.md"), "user-owned").unwrap();
+
+    let error = adapter
+        .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("PLUGIN_CATALOG_CONFLICT"));
+    assert_eq!(
+        fs::read_to_string(launcher.join("SKILL.md")).unwrap(),
+        "user-owned"
+    );
+    assert!(!adapter.layout.codex_plugins.join("sample-plugin").exists());
 }

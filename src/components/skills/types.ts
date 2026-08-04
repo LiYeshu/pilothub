@@ -158,6 +158,12 @@ export type PluginInstallationStatus = {
   installed_path?: string | null
   health: 'healthy' | 'warning' | 'error' | string
   detail?: string | null
+  catalog: {
+    visible: boolean
+    skill_name: string
+    path: string
+    detail?: string | null
+  }
 }
 
 export type InstalledCodexPlugin = {

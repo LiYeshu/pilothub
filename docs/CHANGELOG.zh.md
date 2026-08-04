@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 新增
+- **Codex 技能目录入口**：为每个由 PilotHub 管理的 Codex Plugin 生成一个独立启动 Skill，使 AI 专家团可以显示在 Codex 技能目录中，同时保留内部专业 Skills 的 Plugin 命名空间。
+
+### 变更
+- **Plugin 生命周期扩展**：启动 Skill 随所属 Plugin 一起安装、修复、诊断、更新、回滚和卸载；遇到同名用户 Skill 时停止覆盖并给出明确提示。
+
 ## [0.10.0-alpha.1] - 2026-07-30
 
 ### 新增

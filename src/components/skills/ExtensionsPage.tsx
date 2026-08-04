@@ -143,6 +143,11 @@ const ExtensionsPage = ({
                         })}
                   </span>
                   <span>{t('plugins.managedByPilotHub')}</span>
+                  <span>
+                    {plugin.status.catalog.visible
+                      ? t('plugins.catalogVisible')
+                      : t('plugins.catalogMissing')}
+                  </span>
                 </div>
                 <div
                   className="codex-plugin-skills"
