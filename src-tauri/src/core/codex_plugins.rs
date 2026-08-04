@@ -13,8 +13,11 @@ use super::git_fetcher::clone_or_pull;
 use super::installer::parse_skill_md_with_reason;
 use super::storage_migration::StorageLayout;
 use super::sync_engine::copy_dir_recursive;
+use super::tool_adapters::resolve_codex_home;
 
 pub const PILOTHUB_MARKETPLACE_NAME: &str = "pilothub-local";
+const PILOTHUB_LAUNCHER_PREFIX: &str = "pilothub-";
+const PILOTHUB_LAUNCHER_MARKER: &str = ".pilothub-plugin-launcher.json";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PluginSource {
@@ -73,6 +76,15 @@ pub struct PluginInstallationStatus {
     pub version: String,
     pub installed_path: Option<String>,
     pub health: String,
+    pub detail: Option<String>,
+    pub catalog: PluginCatalogStatus,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PluginCatalogStatus {
+    pub visible: bool,
+    pub skill_name: String,
+    pub path: String,
     pub detail: Option<String>,
 }
 
@@ -136,13 +148,23 @@ impl CodexCommandRunner for SystemCodexRunner {
 
 pub struct CodexPluginAdapter {
     layout: StorageLayout,
+    codex_skills: PathBuf,
 }
 
 impl CodexPluginAdapter {
     pub fn from_home(home: &Path) -> Result<Self> {
+        let codex_home = resolve_codex_home(home, std::env::var_os("CODEX_HOME"));
+        Self::from_home_with_codex_home(home, &codex_home)
+    }
+
+    fn from_home_with_codex_home(home: &Path, codex_home: &Path) -> Result<Self> {
         let layout = StorageLayout::from_home(home);
         layout.ensure()?;
-        Ok(Self { layout })
+        let codex_skills = codex_home.join("skills");
+        Ok(Self {
+            layout,
+            codex_skills,
+        })
     }
 
     pub fn inspect(&self, source: &PluginSource, proxy_url: Option<&str>) -> Result<PluginPreview> {
@@ -204,6 +226,7 @@ impl CodexPluginAdapter {
             .codex_staging
             .join(format!("{plugin_name}-{}", Uuid::new_v4()));
         let staging_plugin = staging_root.join(plugin_name);
+        self.ensure_launcher_available(plugin_name)?;
         std::fs::create_dir_all(&staging_root)?;
 
         let install_result = (|| -> Result<PluginInstallResult> {
@@ -239,6 +262,8 @@ impl CodexPluginAdapter {
             }
 
             let mut marketplace_added = false;
+            let mut launcher_backup = None;
+            let mut launcher_activated = false;
             let cli_result = (|| -> Result<PluginInstallationStatus> {
                 marketplace_added = ensure_marketplace_registered(runner, &self.layout.codex)?;
                 let selector = format!("{plugin_name}@{PILOTHUB_MARKETPLACE_NAME}");
@@ -251,14 +276,22 @@ impl CodexPluginAdapter {
                         "--json".to_string(),
                     ],
                 )?;
-                find_plugin_status(runner, plugin_name)?.with_context(|| {
+                let mut status = find_plugin_status(runner, plugin_name)?.with_context(|| {
                     format!("Codex did not report {plugin_name} after installation")
-                })
+                })?;
+                launcher_backup =
+                    self.activate_catalog_launcher(&preview.descriptor, &staging_root)?;
+                launcher_activated = true;
+                status.catalog = self.catalog_status(plugin_name);
+                Ok(status)
             })();
 
             match cli_result {
                 Ok(status) => {
                     if let Some(backup) = backup {
+                        let _ = remove_path(&backup);
+                    }
+                    if let Some(backup) = launcher_backup {
                         let _ = remove_path(&backup);
                     }
                     Ok(PluginInstallResult {
@@ -267,6 +300,23 @@ impl CodexPluginAdapter {
                     })
                 }
                 Err(err) => {
+                    let launcher = self.launcher_path(plugin_name);
+                    if launcher_activated && self.launcher_is_owned(&launcher, plugin_name) {
+                        let _ = remove_path(&launcher);
+                    }
+                    if let Some(backup) = launcher_backup {
+                        let _ = std::fs::rename(backup, launcher);
+                    }
+                    let selector = format!("{plugin_name}@{PILOTHUB_MARKETPLACE_NAME}");
+                    let _ = run_json_command(
+                        runner,
+                        &[
+                            "plugin".to_string(),
+                            "remove".to_string(),
+                            selector,
+                            "--json".to_string(),
+                        ],
+                    );
                     let _ = remove_path(&target);
                     if let Some(backup) = &backup {
                         let _ = std::fs::rename(backup, &target);
@@ -313,17 +363,25 @@ impl CodexPluginAdapter {
                 source_ref: root.to_string_lossy().to_string(),
             };
             let preview = inspect_plugin_root(&root, source)?;
-            let status = status_from_list_json(&cli, &name).unwrap_or(PluginInstallationStatus {
-                plugin_name: name,
-                marketplace_name: PILOTHUB_MARKETPLACE_NAME.to_string(),
-                target: "codex".to_string(),
-                installed: false,
-                enabled: false,
-                version: preview.descriptor.version.clone(),
-                installed_path: None,
-                health: "error".to_string(),
-                detail: Some("Codex does not report this Plugin as installed".to_string()),
-            });
+            let _ = self.repair_catalog_launcher(&preview.descriptor);
+            let mut status =
+                status_from_list_json(&cli, &name).unwrap_or(PluginInstallationStatus {
+                    plugin_name: name,
+                    marketplace_name: PILOTHUB_MARKETPLACE_NAME.to_string(),
+                    target: "codex".to_string(),
+                    installed: false,
+                    enabled: false,
+                    version: preview.descriptor.version.clone(),
+                    installed_path: None,
+                    health: "error".to_string(),
+                    detail: Some("Codex does not report this Plugin as installed".to_string()),
+                    catalog: empty_catalog_status(""),
+                });
+            status.catalog = self.catalog_status(&preview.descriptor.name);
+            if status.health == "healthy" && !status.catalog.visible {
+                status.health = "warning".to_string();
+                status.detail = status.catalog.detail.clone();
+            }
             plugins.push(InstalledCodexPlugin {
                 descriptor: preview.descriptor,
                 status,
@@ -354,7 +412,102 @@ impl CodexPluginAdapter {
         }
         self.remove_marketplace_entry(plugin_name)?;
         remove_path(&self.layout.codex_plugins.join(plugin_name))?;
+        let launcher = self.launcher_path(plugin_name);
+        if self.launcher_is_owned(&launcher, plugin_name) {
+            remove_path(&launcher)?;
+        }
         Ok(())
+    }
+
+    fn launcher_name(&self, plugin_name: &str) -> String {
+        format!("{PILOTHUB_LAUNCHER_PREFIX}{plugin_name}")
+    }
+
+    fn launcher_path(&self, plugin_name: &str) -> PathBuf {
+        self.codex_skills.join(self.launcher_name(plugin_name))
+    }
+
+    fn ensure_launcher_available(&self, plugin_name: &str) -> Result<()> {
+        let launcher = self.launcher_path(plugin_name);
+        if launcher.exists() && !self.launcher_is_owned(&launcher, plugin_name) {
+            anyhow::bail!(
+                "PLUGIN_CATALOG_CONFLICT|{}",
+                self.launcher_name(plugin_name)
+            );
+        }
+        Ok(())
+    }
+
+    fn activate_catalog_launcher(
+        &self,
+        descriptor: &CodexPluginDescriptor,
+        staging_root: &Path,
+    ) -> Result<Option<PathBuf>> {
+        let launcher = self.launcher_path(&descriptor.name);
+        let staged = staging_root.join(self.launcher_name(&descriptor.name));
+        write_catalog_launcher(&staged, descriptor)?;
+        std::fs::create_dir_all(&self.codex_skills)
+            .with_context(|| format!("create Codex Skills directory {:?}", self.codex_skills))?;
+        let backup = if launcher.exists() {
+            let backup = self.layout.codex_backups.join(format!(
+                "{}-launcher-{}",
+                descriptor.name,
+                Uuid::new_v4()
+            ));
+            std::fs::rename(&launcher, &backup).context("backup existing catalog launcher")?;
+            Some(backup)
+        } else {
+            None
+        };
+        if let Err(err) = std::fs::rename(&staged, &launcher) {
+            if let Some(backup) = &backup {
+                let _ = std::fs::rename(backup, &launcher);
+            }
+            return Err(err).context("activate Codex catalog launcher");
+        }
+        Ok(backup)
+    }
+
+    fn repair_catalog_launcher(&self, descriptor: &CodexPluginDescriptor) -> Result<()> {
+        let launcher = self.launcher_path(&descriptor.name);
+        if self.launcher_is_owned(&launcher, &descriptor.name)
+            && launcher.join("SKILL.md").is_file()
+            && launcher.join("agents/openai.yaml").is_file()
+        {
+            return Ok(());
+        }
+        self.ensure_launcher_available(&descriptor.name)?;
+        let staging_root = self
+            .layout
+            .codex_staging
+            .join(format!("catalog-repair-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&staging_root)?;
+        let result = self
+            .activate_catalog_launcher(descriptor, &staging_root)
+            .map(|backup| {
+                if let Some(backup) = backup {
+                    let _ = remove_path(&backup);
+                }
+            });
+        let _ = remove_path(&staging_root);
+        result
+    }
+
+    fn launcher_is_owned(&self, launcher: &Path, plugin_name: &str) -> bool {
+        read_launcher_owner(launcher).as_deref() == Some(plugin_name)
+    }
+
+    fn catalog_status(&self, plugin_name: &str) -> PluginCatalogStatus {
+        let launcher = self.launcher_path(plugin_name);
+        let visible = self.launcher_is_owned(&launcher, plugin_name)
+            && launcher.join("SKILL.md").is_file()
+            && launcher.join("agents/openai.yaml").is_file();
+        PluginCatalogStatus {
+            visible,
+            skill_name: self.launcher_name(plugin_name),
+            path: launcher.to_string_lossy().to_string(),
+            detail: (!visible).then(|| "Codex catalog launcher is missing".to_string()),
+        }
     }
 
     fn prepare_source(&self, source: &PluginSource, proxy_url: Option<&str>) -> Result<PathBuf> {
@@ -565,6 +718,73 @@ fn scan_plugin_skills(
         });
     }
     Ok(skills)
+}
+
+fn write_catalog_launcher(root: &Path, descriptor: &CodexPluginDescriptor) -> Result<()> {
+    let launcher_name = format!("{PILOTHUB_LAUNCHER_PREFIX}{}", descriptor.name);
+    let coordinator = descriptor
+        .skills
+        .iter()
+        .find(|skill| skill.name == "content-director")
+        .or_else(|| descriptor.skills.first())
+        .context("Plugin must contain a Skill for its catalog launcher")?;
+    let namespaced_skill = format!("{}:{}", descriptor.name, coordinator.name);
+    let description = format!(
+        "Launch {} and coordinate its installed Plugin Skills.",
+        descriptor.display_name
+    );
+    let skill_md = format!(
+        "---\nname: {launcher_name}\ndescription: {}\n---\n\n# {}\n\nThis is a PilotHub-managed launcher for the `{}` Codex Plugin.\n\nWhen the user invokes this Skill, load and follow `${}` as the coordinating workflow. Keep the Plugin namespace intact when calling its other Skills.\n",
+        serde_json::to_string(&description)?,
+        descriptor.display_name,
+        descriptor.name,
+        namespaced_skill
+    );
+    let default_prompt = descriptor
+        .default_prompts
+        .first()
+        .cloned()
+        .unwrap_or_else(|| {
+            format!(
+                "Use ${launcher_name} to help me complete a task with {}.",
+                descriptor.display_name
+            )
+        });
+    let short_description = format!("Open the {} expert team", descriptor.display_name);
+    let openai_yaml = format!(
+        "interface:\n  display_name: {}\n  short_description: {}\n  default_prompt: {}\n",
+        serde_json::to_string(&descriptor.display_name)?,
+        serde_json::to_string(&short_description)?,
+        serde_json::to_string(&default_prompt)?
+    );
+    let marker = serde_json::to_vec_pretty(&json!({
+        "plugin_name": descriptor.name,
+        "plugin_version": descriptor.version,
+        "launcher_skill": launcher_name
+    }))?;
+    std::fs::create_dir_all(root.join("agents"))?;
+    std::fs::write(root.join("SKILL.md"), skill_md)?;
+    std::fs::write(root.join("agents/openai.yaml"), openai_yaml)?;
+    std::fs::write(root.join(PILOTHUB_LAUNCHER_MARKER), marker)?;
+    Ok(())
+}
+
+fn read_launcher_owner(root: &Path) -> Option<String> {
+    let bytes = std::fs::read(root.join(PILOTHUB_LAUNCHER_MARKER)).ok()?;
+    let value: Value = serde_json::from_slice(&bytes).ok()?;
+    value
+        .get("plugin_name")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+fn empty_catalog_status(plugin_name: &str) -> PluginCatalogStatus {
+    PluginCatalogStatus {
+        visible: false,
+        skill_name: format!("{PILOTHUB_LAUNCHER_PREFIX}{plugin_name}"),
+        path: String::new(),
+        detail: None,
+    }
 }
 
 fn validate_plugin_name(name: &str) -> Result<()> {
@@ -818,6 +1038,7 @@ fn status_from_list_json(value: &Value, plugin_name: &str) -> Option<PluginInsta
                 .map(str::to_string),
             health: "healthy".to_string(),
             detail: None,
+            catalog: empty_catalog_status(plugin_name),
         })
 }
 

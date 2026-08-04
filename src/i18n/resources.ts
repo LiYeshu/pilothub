@@ -134,6 +134,11 @@ export const resources = {
         capabilities: 'Capabilities',
         moreCapabilities: '+{{count}} more',
         managedByPilotHub: 'Managed by PilotHub',
+        codexCatalog: 'Codex Skills catalog',
+        catalogVisible: 'Visible in Skills',
+        catalogMissing: 'Catalog entry missing',
+        catalogSkill: 'Catalog Skill',
+        catalogPath: 'Catalog path',
         viewExpertTeam: 'View expert team',
         viewCapability: 'View capability',
         gitSource: 'Git repository',
@@ -168,7 +173,7 @@ export const resources = {
         installPath: 'Install path',
         validationPassed: 'Plugin structure is valid and ready to install.',
         installSuccess:
-          '{{name}} was installed. Start a new Codex task to use its Skills.',
+          '{{name}} was installed. Refresh Codex to see it in Skills, or start a new task.',
         doctor: 'Diagnose',
         doctorHealthy: '{{name}} is installed and healthy.',
         doctorAttention: '{{name}} needs attention.',
@@ -200,6 +205,8 @@ export const resources = {
           codexMissing: 'Codex CLI was not found. Install or update Codex first.',
           manifestMissing:
             'PilotHub could not read .codex-plugin/plugin.json from this source.',
+          catalogConflict:
+            'PilotHub cannot create the catalog Skill {{skill}} because that name is already in use.',
         },
       },
       stats: {
@@ -1050,6 +1057,11 @@ export const resources = {
         capabilities: '能力',
         moreCapabilities: '另有 {{count}} 个',
         managedByPilotHub: '由 PilotHub 管理',
+        codexCatalog: 'Codex 技能目录',
+        catalogVisible: '已显示在技能目录',
+        catalogMissing: '技能目录入口缺失',
+        catalogSkill: '目录启动 Skill',
+        catalogPath: '目录路径',
         viewExpertTeam: '查看专家团',
         viewCapability: '查看能力',
         gitSource: 'Git 仓库',
@@ -1082,7 +1094,7 @@ export const resources = {
         installPath: '安装路径',
         validationPassed: 'Plugin 结构有效，可以安装。',
         installSuccess:
-          '{{name}} 已安装。请新建一个 Codex 任务以使用其中的 Skills。',
+          '{{name}} 已安装。刷新 Codex 后可在“技能”中看到，也可以直接新建任务使用。',
         doctor: '诊断',
         doctorHealthy: '{{name}} 已安装且运行正常。',
         doctorAttention: '{{name}} 需要处理。',
@@ -1111,6 +1123,8 @@ export const resources = {
           codexMissing: '未找到 Codex CLI，请先安装或更新 Codex。',
           manifestMissing:
             'PilotHub 无法从该来源读取 .codex-plugin/plugin.json。',
+          catalogConflict:
+            '无法创建目录 Skill“{{skill}}”，因为该名称已被现有 Skill 占用。',
         },
       },
       stats: {

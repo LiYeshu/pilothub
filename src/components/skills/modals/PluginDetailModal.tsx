@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import {
   Bot,
+  BookOpen,
   CircleAlert,
   CircleCheck,
   Code2,
@@ -88,6 +89,17 @@ const PluginDetailModal = ({
           </section>
 
           <dl className="plugin-detail-summary">
+            <div>
+              <dt>
+                <BookOpen size={15} aria-hidden="true" />
+                {t('plugins.codexCatalog')}
+              </dt>
+              <dd>
+                {status.catalog.visible
+                  ? t('plugins.catalogVisible')
+                  : t('plugins.catalogMissing')}
+              </dd>
+            </div>
             <div>
               <dt>
                 <Bot size={15} aria-hidden="true" />
@@ -187,6 +199,16 @@ const PluginDetailModal = ({
                 <dd>
                   <code>{status.marketplace_name}</code>
                 </dd>
+              </div>
+              <div>
+                <dt>{t('plugins.catalogSkill')}</dt>
+                <dd>
+                  <code>${status.catalog.skill_name}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('plugins.catalogPath')}</dt>
+                <dd>{status.catalog.path}</dd>
               </div>
               <div>
                 <dt>{t('plugins.installPath')}</dt>
