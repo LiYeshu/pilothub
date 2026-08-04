@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 修复
+- **macOS 发布包验签**：未配置 Apple Developer ID 证书时，发布构建现在会使用结构完整的 ad-hoc bundle 签名，并在上传前强制验证每个 macOS 应用包。此类构建仍未公证，部分系统可能仍需要文档中的 Gatekeeper 处理方式。
+
 ### 新增
 - **Codex 技能目录入口**：为每个由 PilotHub 管理的 Codex Plugin 生成一个独立启动 Skill，使 AI 专家团可以显示在 Codex 技能目录中，同时保留内部专业 Skills 的 Plugin 命名空间。
 
