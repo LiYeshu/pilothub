@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **macOS release bundle verification**: Release builds without an Apple Developer ID certificate now use a structurally valid ad-hoc bundle signature, and every macOS artifact is verified before upload. These builds remain unnotarized and may still require the documented Gatekeeper workaround.
+
 ### Added
 - **Codex Skills catalog launcher**: Expose each PilotHub-managed Codex Plugin as one standalone launcher Skill so expert teams appear in the Codex Skills catalog without duplicating their namespaced specialist Skills.
 
