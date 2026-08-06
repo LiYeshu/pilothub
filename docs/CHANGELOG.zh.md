@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.10.0-alpha.2] - 2026-08-06
+
 ### 修复
 - **macOS 发布包验签**：未配置 Apple Developer ID 证书时，发布构建现在会使用结构完整的 ad-hoc bundle 签名，并在上传前强制验证每个 macOS 应用包。此类构建仍未公证，部分系统可能仍需要文档中的 Gatekeeper 处理方式。
 

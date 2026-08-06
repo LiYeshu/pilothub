@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0-alpha.2] - 2026-08-06
+
 ### Fixed
 - **macOS release bundle verification**: Release builds without an Apple Developer ID certificate now use a structurally valid ad-hoc bundle signature, and every macOS artifact is verified before upload. These builds remain unnotarized and may still require the documented Gatekeeper workaround.
 
