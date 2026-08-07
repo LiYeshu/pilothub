@@ -8,7 +8,7 @@ PilotHub `0.10.0-alpha.2` 聚焦 Codex Plugin 的可发现性和 macOS 发布包
 
 ### Codex Skills 目录入口
 
-每个由 PilotHub 管理的 Codex Plugin 都会生成一个独立的启动 Skill。用户可以在 Codex 的 Skills 目录中直接看到“公众号运营专家团”等业务入口，而不需要记住内部专业 Skills 的命名空间。
+每个由 PilotHub 管理的 Codex Plugin 都会生成一个独立的启动 Skill。用户可以在 Codex 的 Skills 目录中直接看到“微信公众号内容智能体”等业务入口，而不需要记住内部专业 Skills 的命名空间。
 
 启动 Skill 只负责把用户目标交给对应 Plugin 的统筹能力；专业 Skills 仍由 Codex 按任务需要选择和执行，不会复制或覆盖 Plugin 内部文件。
 
@@ -35,7 +35,7 @@ codesign --verify --deep --strict
 
 - `npm run check` 通过：前端 lint、单元测试、生产构建、Rust 格式、Clippy 和 Rust 单元测试；
 - 新 Codex 任务可以发现 PilotHub 管理的 Plugin 启动 Skill；
-- `LiYeshu/wechat-content-expert-team` 可在 Codex 中显示为“公众号运营专家团”，并保留四个内部专业 Skills；
+- `LiYeshu/wechat-content-expert-team` 可在 Codex 中显示为“微信公众号内容智能体”，并保留四个内部专业 Skills；
 - 本地 macOS bundle 通过 `codesign --verify --deep --strict`；
 - 发布工作流对每个 macOS 应用包执行严格验签后才上传。
 
