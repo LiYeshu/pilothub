@@ -36,8 +36,11 @@ codesign --verify --deep --strict
 - `npm run check` 通过：前端 lint、单元测试、生产构建、Rust 格式、Clippy 和 Rust 单元测试；
 - 新 Codex 任务可以发现 PilotHub 管理的 Plugin 启动 Skill；
 - `LiYeshu/wechat-content-expert-team` 可在 Codex 中显示为“微信公众号内容智能体”，并保留四个内部专业 Skills；
+- ChatGPT 聊天可以从 `@` 菜单选择“微信公众号内容智能体”，完成文章、封面和正文配图任务，并将完整图文写入微信公众号草稿箱；
 - 本地 macOS bundle 通过 `codesign --verify --deep --strict`；
 - 发布工作流对每个 macOS 应用包执行严格验签后才上传。
+
+完整记录见 [Plugin 收尾验收](./PLUGIN-ACCEPTANCE.md)。
 
 ## 产品边界
 
