@@ -65,6 +65,7 @@ struct FakeCodexRunner {
     installed: Mutex<bool>,
     calls: Mutex<Vec<Vec<String>>>,
     fail_install: bool,
+    fail_list: bool,
 }
 
 impl FakeCodexRunner {
@@ -73,12 +74,20 @@ impl FakeCodexRunner {
             installed: Mutex::new(false),
             calls: Mutex::new(Vec::new()),
             fail_install: false,
+            fail_list: false,
         }
     }
 
     fn failing_install() -> Self {
         Self {
             fail_install: true,
+            ..Self::new()
+        }
+    }
+
+    fn failing_list() -> Self {
+        Self {
+            fail_list: true,
             ..Self::new()
         }
     }
@@ -132,6 +141,13 @@ impl CodexCommandRunner for FakeCodexRunner {
             })));
         }
         if command == "plugin list --available --json" {
+            if self.fail_list {
+                return Ok(Output {
+                    status: failure_status(),
+                    stdout: Vec::new(),
+                    stderr: b"simulated list failure".to_vec(),
+                });
+            }
             let installed = *self.installed.lock().unwrap();
             return Ok(Self::output(json!({
                 "installed": if installed {
@@ -331,6 +347,10 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
     let installed = adapter.list_with_runner(&runner).unwrap();
     assert_eq!(installed.len(), 1);
     assert_eq!(installed[0].status.health, "healthy");
+    assert!(installed[0].status.invocation.native_registration);
+    assert!(installed[0].status.invocation.native_discovery);
+    assert!(!installed[0].status.invocation.native_invocation);
+    assert_eq!(installed[0].status.invocation.verification, "unsupported");
     assert!(installed[0].status.catalog.visible);
     assert_eq!(
         installed[0].status.catalog.skill_name,
@@ -349,6 +369,98 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
     assert!(!launcher.exists());
     let marketplace = read_marketplace(&adapter.layout.codex_marketplace).unwrap();
     assert_eq!(marketplace["plugins"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn native_invocation_detection_requires_a_new_conversation_acceptance_check() {
+    let status = super::status_from_list_json(
+        &json!({
+            "installed": [{
+                "name": "sample-plugin",
+                "marketplaceName": PILOTHUB_MARKETPLACE_NAME,
+                "version": "1.0.0",
+                "installed": true,
+                "enabled": true
+            }]
+        }),
+        "sample-plugin",
+    )
+    .unwrap();
+
+    assert!(status.invocation.native_registration);
+    assert!(status.invocation.native_discovery);
+    assert!(!status.invocation.native_invocation);
+    assert_eq!(status.invocation.verification, "unsupported");
+    assert!(status
+        .invocation
+        .detail
+        .unwrap()
+        .contains("new-conversation acceptance check"));
+}
+
+#[test]
+fn disabled_plugin_fails_native_discovery_detection() {
+    let status = super::status_from_list_json(
+        &json!({
+            "installed": [{
+                "name": "sample-plugin",
+                "marketplaceName": PILOTHUB_MARKETPLACE_NAME,
+                "version": "1.0.0",
+                "installed": true,
+                "enabled": false
+            }]
+        }),
+        "sample-plugin",
+    )
+    .unwrap();
+
+    assert!(status.invocation.native_registration);
+    assert!(!status.invocation.native_discovery);
+    assert!(!status.invocation.native_invocation);
+    assert_eq!(status.invocation.verification, "failed");
+}
+
+#[test]
+fn missing_plugin_has_no_native_invocation_capability() {
+    assert!(super::status_from_list_json(&json!({ "installed": [] }), "sample-plugin").is_none());
+
+    let capability =
+        super::unavailable_invocation_capability("Codex does not report this Plugin as installed");
+    assert!(!capability.native_registration);
+    assert!(!capability.native_discovery);
+    assert!(!capability.native_invocation);
+    assert_eq!(capability.verification, "failed");
+}
+
+#[test]
+fn cli_list_failure_reports_no_native_invocation_capability() {
+    let temp = TempDir::new().unwrap();
+    let adapter = test_adapter(&temp);
+    let root = temp.path().join("sample-plugin");
+    write_plugin(
+        &root,
+        r#"{
+          "name": "sample-plugin",
+          "version": "1.0.0",
+          "description": "Sample",
+          "skills": "./skills/"
+        }"#,
+        &[("sample-skill", "Run the sample workflow")],
+    );
+    adapter
+        .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
+        .unwrap();
+
+    let installed = adapter
+        .list_with_runner(&FakeCodexRunner::failing_list())
+        .unwrap();
+
+    assert_eq!(installed.len(), 1);
+    assert_eq!(installed[0].status.health, "error");
+    assert!(!installed[0].status.invocation.native_registration);
+    assert!(!installed[0].status.invocation.native_discovery);
+    assert!(!installed[0].status.invocation.native_invocation);
+    assert_eq!(installed[0].status.invocation.verification, "failed");
 }
 
 #[test]

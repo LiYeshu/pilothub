@@ -158,6 +158,14 @@ export type PluginInstallationStatus = {
   installed_path?: string | null
   health: 'healthy' | 'warning' | 'error' | string
   detail?: string | null
+  invocation: {
+    host: 'codex' | string
+    native_registration: boolean
+    native_discovery: boolean
+    native_invocation: boolean
+    verification: 'verified' | 'failed' | 'unsupported' | string
+    detail?: string | null
+  }
   catalog: {
     visible: boolean
     skill_name: string
