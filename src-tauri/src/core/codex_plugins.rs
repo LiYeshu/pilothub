@@ -77,7 +77,18 @@ pub struct PluginInstallationStatus {
     pub installed_path: Option<String>,
     pub health: String,
     pub detail: Option<String>,
+    pub invocation: PluginInvocationCapability,
     pub catalog: PluginCatalogStatus,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PluginInvocationCapability {
+    pub host: String,
+    pub native_registration: bool,
+    pub native_discovery: bool,
+    pub native_invocation: bool,
+    pub verification: String,
+    pub detail: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -375,6 +386,9 @@ impl CodexPluginAdapter {
                     installed_path: None,
                     health: "error".to_string(),
                     detail: Some("Codex does not report this Plugin as installed".to_string()),
+                    invocation: unavailable_invocation_capability(
+                        "Codex does not report this Plugin as installed",
+                    ),
                     catalog: empty_catalog_status(""),
                 });
             status.catalog = self.catalog_status(&preview.descriptor.name);
@@ -787,6 +801,44 @@ fn empty_catalog_status(plugin_name: &str) -> PluginCatalogStatus {
     }
 }
 
+fn invocation_capability(installed: bool, enabled: bool) -> PluginInvocationCapability {
+    if !installed {
+        return unavailable_invocation_capability("Codex does not report this Plugin as installed");
+    }
+    if !enabled {
+        return PluginInvocationCapability {
+            host: "codex".to_string(),
+            native_registration: true,
+            native_discovery: false,
+            native_invocation: false,
+            verification: "failed".to_string(),
+            detail: Some("Codex reports this Plugin as installed but disabled".to_string()),
+        };
+    }
+    PluginInvocationCapability {
+        host: "codex".to_string(),
+        native_registration: true,
+        native_discovery: true,
+        native_invocation: false,
+        verification: "unsupported".to_string(),
+        detail: Some(
+            "Codex CLI verifies registration and enabled discovery; native invocation still requires a new-conversation acceptance check"
+                .to_string(),
+        ),
+    }
+}
+
+fn unavailable_invocation_capability(detail: &str) -> PluginInvocationCapability {
+    PluginInvocationCapability {
+        host: "codex".to_string(),
+        native_registration: false,
+        native_discovery: false,
+        native_invocation: false,
+        verification: "failed".to_string(),
+        detail: Some(detail.to_string()),
+    }
+}
+
 fn validate_plugin_name(name: &str) -> Result<()> {
     if name.is_empty() || name.len() > 64 {
         anyhow::bail!("Plugin name must contain 1 to 64 characters");
@@ -1015,30 +1067,35 @@ fn status_from_list_json(value: &Value, plugin_name: &str) -> Option<PluginInsta
                 && entry.get("marketplaceName").and_then(Value::as_str)
                     == Some(PILOTHUB_MARKETPLACE_NAME)
         })
-        .map(|entry| PluginInstallationStatus {
-            plugin_name: plugin_name.to_string(),
-            marketplace_name: PILOTHUB_MARKETPLACE_NAME.to_string(),
-            target: "codex".to_string(),
-            installed: entry
+        .map(|entry| {
+            let installed = entry
                 .get("installed")
                 .and_then(Value::as_bool)
-                .unwrap_or(true),
-            enabled: entry
+                .unwrap_or(true);
+            let enabled = entry
                 .get("enabled")
                 .and_then(Value::as_bool)
-                .unwrap_or(true),
-            version: entry
-                .get("version")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string(),
-            installed_path: entry
-                .get("installedPath")
-                .and_then(Value::as_str)
-                .map(str::to_string),
-            health: "healthy".to_string(),
-            detail: None,
-            catalog: empty_catalog_status(plugin_name),
+                .unwrap_or(true);
+            PluginInstallationStatus {
+                plugin_name: plugin_name.to_string(),
+                marketplace_name: PILOTHUB_MARKETPLACE_NAME.to_string(),
+                target: "codex".to_string(),
+                installed,
+                enabled,
+                version: entry
+                    .get("version")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                installed_path: entry
+                    .get("installedPath")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                health: "healthy".to_string(),
+                detail: None,
+                invocation: invocation_capability(installed, enabled),
+                catalog: empty_catalog_status(plugin_name),
+            }
         })
 }
 
