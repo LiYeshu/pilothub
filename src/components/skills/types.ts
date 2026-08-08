@@ -160,6 +160,7 @@ export type PluginInstallationStatus = {
   detail?: string | null
   invocation: {
     host: 'codex' | string
+    mode: 'native' | 'compatibility' | 'unavailable' | string
     native_registration: boolean
     native_discovery: boolean
     native_invocation: boolean

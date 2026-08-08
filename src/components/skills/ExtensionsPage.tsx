@@ -144,9 +144,11 @@ const ExtensionsPage = ({
                   </span>
                   <span>{t('plugins.managedByPilotHub')}</span>
                   <span>
-                    {plugin.status.catalog.visible
-                      ? t('plugins.catalogVisible')
-                      : t('plugins.catalogMissing')}
+                    {plugin.status.invocation.mode === 'native'
+                      ? t('plugins.nativeMode')
+                      : plugin.status.invocation.mode === 'compatibility'
+                        ? t('plugins.compatibilityMode')
+                        : t('plugins.unavailableMode')}
                   </span>
                 </div>
                 <div

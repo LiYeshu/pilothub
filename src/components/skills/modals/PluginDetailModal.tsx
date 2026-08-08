@@ -1,7 +1,6 @@
 import { memo } from 'react'
 import {
   Bot,
-  BookOpen,
   CircleAlert,
   CircleCheck,
   Code2,
@@ -91,13 +90,15 @@ const PluginDetailModal = ({
           <dl className="plugin-detail-summary">
             <div>
               <dt>
-                <BookOpen size={15} aria-hidden="true" />
-                {t('plugins.codexCatalog')}
+                <CircleCheck size={15} aria-hidden="true" />
+                {t('plugins.invocationMode')}
               </dt>
               <dd>
-                {status.catalog.visible
-                  ? t('plugins.catalogVisible')
-                  : t('plugins.catalogMissing')}
+                {status.invocation.mode === 'native'
+                  ? t('plugins.nativeMode')
+                  : status.invocation.mode === 'compatibility'
+                    ? t('plugins.compatibilityMode')
+                    : t('plugins.unavailableMode')}
               </dd>
             </div>
             <div>
@@ -200,16 +201,20 @@ const PluginDetailModal = ({
                   <code>{status.marketplace_name}</code>
                 </dd>
               </div>
-              <div>
-                <dt>{t('plugins.catalogSkill')}</dt>
-                <dd>
-                  <code>${status.catalog.skill_name}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>{t('plugins.catalogPath')}</dt>
-                <dd>{status.catalog.path}</dd>
-              </div>
+              {status.catalog.visible ? (
+                <>
+                  <div>
+                    <dt>{t('plugins.compatibilityLauncher')}</dt>
+                    <dd>
+                      <code>${status.catalog.skill_name}</code>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('plugins.compatibilityLauncherPath')}</dt>
+                    <dd>{status.catalog.path}</dd>
+                  </div>
+                </>
+              ) : null}
               <div>
                 <dt>{t('plugins.installPath')}</dt>
                 <dd>{status.installed_path ?? t('unknown')}</dd>

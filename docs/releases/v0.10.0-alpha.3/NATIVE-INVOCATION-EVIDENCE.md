@@ -1,21 +1,20 @@
 # PilotHub 0.10.0-alpha.3 Native Plugin 能力探测证据
 
-状态：PR #52 implementation evidence
+状态：PR #52 探测证据 + PR #53 原生调用验收
 
 ## 结论
 
-PilotHub 可以通过 Codex CLI 自动验证 Plugin 已注册、已安装并处于启用状态，也可以据此确认 Plugin 内 Skills 应在新会话中进入宿主发现范围。但 CLI 不提供一次无副作用的“模拟用户调用”命令，因此不能仅凭 `plugin list` 把原生调用标记为已验证。
+PR #52 已证明 PilotHub 可以验证 Plugin 已注册、已安装并处于启用状态。2026-08-09 的 PR #53 Gate 进一步在完全移除 Compatibility Launcher 后启动两次全新、只读、临时 Codex 会话，分别验证原生发现和入口 Skill 调用。
 
-PR #52 采用保守状态：
+验收后的状态为：
 
 ```text
 native_registration = true
 native_discovery = true
-native_invocation = false
-verification = unsupported
+native_invocation = true
+verification = verified
+mode = native
 ```
-
-现有 Compatibility Launcher 保持不变。只有后续完成一次移除 Launcher 后的新会话人工调用验收，PR #53 才能将对应宿主切换为 Native 默认入口。
 
 ## 官方产品依据
 
@@ -58,37 +57,39 @@ Plugin version: 0.1.0
 }
 ```
 
-该证据足以确认本机原生 Plugin 注册成功且处于发现条件，但不足以区分 ChatGPT `@` 菜单中的业务入口来自原生 Plugin 还是 Alpha.2 Launcher。
+## 无 Launcher 新会话验收
+
+测试期间，PilotHub 管理的 `pilothub-wechat-content-expert-team` Launcher 被移到可恢复的临时位置，原生 Plugin 保持安装和启用。
+
+第一次全新会话返回：
+
+```json
+{"plugin_detected":true,"plugin_name":"wechat-content-expert-team","contributed_skills":["article-writer","baoyu-article-illustrator","baoyu-cover-image","content-director"]}
+```
+
+第二次全新会话明确调用统筹 Skill，返回：
+
+```json
+{"invoked_skill":"wechat-content-expert-team:content-director","workflow_steps":["内容策划","文章撰写与润色","封面图生成","文中配图生成与配置"],"ready":true}
+```
+
+两次会话均未读取项目文件、未运行工具、未依赖 Launcher。测试完成后 Launcher 已恢复，原生 Plugin 仍为 installed + enabled。
 
 ## 自动探测规则
 
 | CLI 状态 | Registration | Discovery | Invocation | Verification |
 | --- | ---: | ---: | ---: | --- |
-| installed + enabled | true | true | false | unsupported |
+| installed + enabled | true | true | true | verified |
 | installed + disabled | true | false | false | failed |
 | 未安装或未上报 | false | false | false | failed |
 | CLI 执行失败 | false | false | false | failed |
 
-`unsupported` 表示当前自动探测没有能力证明原生调用，不代表 Plugin 安装失败或运行异常。
+本轮验收已经覆盖当前 Codex Plugin 宿主的原生发现与调用路径。已安装且启用的 Plugin 使用 `native`；禁用、缺失或 CLI 失败时使用 `unavailable`。
 
-## PR #53 前的人工 Gate
+## PR #53 迁移规则
 
-必须使用隔离测试 Plugin 或可恢复的现有 Plugin 完成：
-
-```text
-确认 Plugin 已安装且 enabled
-→ 暂时移除 PilotHub 所有的 Launcher
-→ 刷新 ChatGPT / Codex
-→ 启动新对话
-→ 从原生 Plugin 入口选择该 Plugin
-→ 执行一个能明确命中统筹 Skill 的任务
-→ 记录调用证据
-→ 恢复原环境或进入条件化 Launcher 实现
-```
-
-在该 Gate 通过前：
-
-- 不删除现有 Launcher；
-- 不把调用模式标记为 `native`；
-- 不把 CLI 安装成功等同于 UI 调用成功；
-- 不改变 Alpha.2 用户的现有调用路径。
+- 新安装不再生成 Launcher；
+- 列表刷新时只移除带 PilotHub 所有权标记的旧 Launcher；
+- 用户所有的同名 Skill 永不删除或覆盖；
+- 禁用、缺失或 CLI 失败时不声称原生调用可用；
+- 卸载继续清理由 PilotHub 所有的遗留 Launcher。
