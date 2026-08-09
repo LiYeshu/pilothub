@@ -354,9 +354,9 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
     assert_eq!(installed[0].status.health, "healthy");
     assert!(installed[0].status.invocation.native_registration);
     assert!(installed[0].status.invocation.native_discovery);
-    assert!(installed[0].status.invocation.native_invocation);
+    assert!(!installed[0].status.invocation.native_invocation);
     assert_eq!(installed[0].status.invocation.mode, "native");
-    assert_eq!(installed[0].status.invocation.verification, "verified");
+    assert_eq!(installed[0].status.invocation.verification, "unverified");
     assert!(!installed[0].status.catalog.visible);
 
     adapter
@@ -370,7 +370,7 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
 }
 
 #[test]
-fn enabled_plugin_uses_verified_native_invocation() {
+fn enabled_plugin_reports_registration_but_requires_runtime_verification() {
     let status = super::status_from_list_json(
         &json!({
             "installed": [{
@@ -387,9 +387,17 @@ fn enabled_plugin_uses_verified_native_invocation() {
 
     assert!(status.invocation.native_registration);
     assert!(status.invocation.native_discovery);
-    assert!(status.invocation.native_invocation);
+    assert!(!status.invocation.native_invocation);
     assert_eq!(status.invocation.mode, "native");
-    assert_eq!(status.invocation.verification, "verified");
+    assert_eq!(status.invocation.verification, "unverified");
+    assert_eq!(status.runtimes.len(), 3);
+    assert_eq!(status.runtimes[0].host, "codex");
+    assert_eq!(status.runtimes[0].discovery, "verified");
+    assert_eq!(status.runtimes[0].invocation, "unverified");
+    assert_eq!(status.runtimes[1].host, "chat");
+    assert_eq!(status.runtimes[1].discovery, "unverified");
+    assert_eq!(status.runtimes[2].host, "work");
+    assert_eq!(status.runtimes[2].invocation, "unverified");
 }
 
 #[test]
@@ -413,6 +421,10 @@ fn disabled_plugin_fails_native_discovery_detection() {
     assert!(!status.invocation.native_invocation);
     assert_eq!(status.invocation.mode, "unavailable");
     assert_eq!(status.invocation.verification, "failed");
+    assert!(status
+        .runtimes
+        .iter()
+        .all(|runtime| runtime.invocation != "verified"));
 }
 
 #[test]

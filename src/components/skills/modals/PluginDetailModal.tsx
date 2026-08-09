@@ -35,6 +35,18 @@ const PluginDetailModal = ({
     descriptor.default_prompts.length > 0
       ? descriptor.default_prompts
       : [t('plugins.usageFallback', { name: descriptor.display_name })]
+  const runtimeLabel = (host: string) => {
+    if (host === 'chat') return t('plugins.runtimeChat')
+    if (host === 'work') return t('plugins.runtimeWork')
+    return t('plugins.runtimeCodex')
+  }
+  const runtimeDetail = (host: string, discovery: string) => {
+    if (host === 'chat') return t('plugins.runtimeDetailChat')
+    if (host === 'work') return t('plugins.runtimeDetailWork')
+    return discovery === 'verified'
+      ? t('plugins.runtimeDetailCodexReady')
+      : t('plugins.runtimeDetailCodexUnavailable')
+  }
 
   return (
     <div className="modal-backdrop" onClick={onRequestClose}>
@@ -106,7 +118,7 @@ const PluginDetailModal = ({
                 <Bot size={15} aria-hidden="true" />
                 {t('plugins.runtime')}
               </dt>
-              <dd>Codex</dd>
+              <dd>{t('plugins.runtimeCount', { count: status.runtimes.length })}</dd>
             </div>
             <div>
               <dt>
@@ -143,12 +155,41 @@ const PluginDetailModal = ({
             <div>
               <dt>{t('plugins.nativeInvocation')}</dt>
               <dd>
-                {status.invocation.native_invocation
-                  ? t('plugins.available')
-                  : t('plugins.unavailable')}
+                {status.invocation.verification === 'verified'
+                  ? t('plugins.runtimeVerified')
+                  : status.invocation.verification === 'unverified'
+                    ? t('plugins.runtimeUnverified')
+                    : t('plugins.unavailable')}
               </dd>
             </div>
           </dl>
+
+          <section className="plugin-detail-section">
+            <div className="plugin-detail-section-heading">
+              <div>
+                <h3>{t('plugins.runtimeStatus')}</h3>
+                <p>{t('plugins.runtimeStatusHint')}</p>
+              </div>
+              <Bot size={18} aria-hidden="true" />
+            </div>
+            <div className="plugin-runtime-grid">
+              {status.runtimes.map((runtime) => (
+                <article key={runtime.host}>
+                  <div>
+                    <strong>{runtimeLabel(runtime.host)}</strong>
+                    <span>
+                      {runtime.invocation === 'verified'
+                        ? t('plugins.runtimeVerified')
+                        : runtime.discovery === 'verified'
+                          ? t('plugins.runtimeReady')
+                          : t('plugins.runtimeUnverified')}
+                    </span>
+                  </div>
+                  <p>{runtimeDetail(runtime.host, runtime.discovery)}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           <section className="plugin-detail-section">
             <div className="plugin-detail-section-heading">
