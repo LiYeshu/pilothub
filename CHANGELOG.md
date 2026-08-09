@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0-alpha.3] - 2026-08-09
+
+### Changed
+- **Native Codex Plugin invocation**: Installed and enabled Codex Plugins now use their namespaced Skills directly. New installations no longer create a standalone catalog Launcher Skill.
+- **Safe Launcher migration**: Listing an existing Plugin removes only a legacy Launcher carrying PilotHub's ownership marker. User-owned Skills with the same name are never removed or overwritten.
+- **Lifecycle diagnostics**: Plugin details now distinguish native registration, Skill discovery, invocation capability, and compatibility state instead of treating installation alone as proof that a Plugin can run.
+
+### Added
+- **Explicit Plugin repair**: Revalidate managed files, rebuild the PilotHub marketplace entry, restore Codex registration, and remove an owned legacy Launcher after native invocation is healthy.
+- **Uninstall residue verification**: A Plugin uninstall reports `PLUGIN_UNINSTALL_INCOMPLETE` when managed files, marketplace metadata, a PilotHub-owned Launcher, or Codex registration remains.
+- **Alpha.3 acceptance evidence**: Documented the native invocation probe, lifecycle behavior, and real macOS uninstall, reinstall, and fresh-session invocation acceptance.
+
+### Verified
+- **Fresh Codex invocation**: A new read-only Codex session discovered `wechat-content-expert-team:content-director`, read its required coordination contract, and returned the expected planning, writing, cover, and illustration stages without a Launcher.
+- **Recoverable lifecycle**: The real Plugin was backed up, uninstalled with no managed residue, reinstalled as an enabled native Plugin, and left in a healthy installed state.
+- **Full quality checks**: Frontend lint, 49 frontend tests, production build, Rust formatting, Clippy, and 179 Rust tests pass; 2 external E2E tests remain ignored by design.
+
+## [0.10.0-alpha.2] - 2026-08-06
+
+### Fixed
+- **macOS release bundle verification**: Release builds without an Apple Developer ID certificate now use a structurally valid ad-hoc bundle signature, and every macOS artifact is verified before upload. These builds remain unnotarized and may still require the documented Gatekeeper workaround.
+
+### Added
+- **Codex Skills catalog launcher**: Expose each PilotHub-managed Codex Plugin as one standalone launcher Skill so expert teams appear in the Codex Skills catalog without duplicating their namespaced specialist Skills.
+
+### Changed
+- **Plugin lifecycle coverage**: Install, repair, diagnose, update, roll back, and uninstall the catalog launcher together with its owning Plugin, while refusing to overwrite user-owned Skills with the same name.
+
 ## [0.10.0-alpha.1] - 2026-07-30
 
 ### Added
@@ -259,7 +287,9 @@ All notable changes to this project will be documented in this file.
 ### Performance
 - Git import and batch install optimizations: cached clones reduce repeated fetches; timeouts and non‑interactive git improve stability.
 
-[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...HEAD
+[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.3...HEAD
+[0.10.0-alpha.3]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.2...v0.10.0-alpha.3
+[0.10.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...v0.10.0-alpha.2
 [0.10.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.2...v0.10.0-alpha.1
 [0.9.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/skills-hub-baseline-2026-07-27...v0.9.0-alpha.1

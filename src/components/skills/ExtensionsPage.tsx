@@ -10,6 +10,7 @@ import {
   Stethoscope,
   Trash2,
   UsersRound,
+  Wrench,
 } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type {
@@ -37,6 +38,7 @@ type ExtensionsPageProps = {
   onOpenPlugin: (plugin: InstalledCodexPlugin) => void
   onAddPlugin: () => void
   onDoctorPlugin: (pluginName: string) => void
+  onRepairPlugin: (pluginName: string) => void
   onUninstallPlugin: (plugin: InstalledCodexPlugin) => void
   t: TFunction
 }
@@ -50,6 +52,7 @@ const ExtensionsPage = ({
   onOpenPlugin,
   onAddPlugin,
   onDoctorPlugin,
+  onRepairPlugin,
   onUninstallPlugin,
   t,
 }: ExtensionsPageProps) => (
@@ -143,6 +146,13 @@ const ExtensionsPage = ({
                         })}
                   </span>
                   <span>{t('plugins.managedByPilotHub')}</span>
+                  <span>
+                    {plugin.status.invocation.mode === 'native'
+                      ? t('plugins.nativeMode')
+                      : plugin.status.invocation.mode === 'compatibility'
+                        ? t('plugins.compatibilityMode')
+                        : t('plugins.unavailableMode')}
+                  </span>
                 </div>
                 <div
                   className="codex-plugin-skills"
@@ -179,6 +189,14 @@ const ExtensionsPage = ({
                   >
                     <Stethoscope size={15} />
                     {t('plugins.doctor')}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => onRepairPlugin(plugin.descriptor.name)}
+                  >
+                    <Wrench size={15} />
+                    {t('plugins.repair')}
                   </button>
                   <button
                     className="btn btn-secondary danger"

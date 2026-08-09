@@ -4,7 +4,7 @@ PilotHub 是一个 AI Agent 扩展管理中心。当前版本用于集中安装�
 
 > English documentation: [`README.md`](../README.md)
 
-PilotHub `0.10.0-alpha.1` 在既有独立 Skill 链路之外，新增标准 Skill-only Codex Plugin 的检查、安装、诊断和完整生命周期管理。包含多个 Skills 的 Plugin 会以“AI 专家团队”展示，但任务理解和 Skills 执行仍由 Codex 负责。
+PilotHub `0.10.0-alpha.2` 在既有独立 Skill 链路之外，新增标准 Skill-only Codex Plugin 的检查、安装、诊断和完整生命周期管理。包含多个 Skills 的 Plugin 会以“AI 专家团队”展示，但任务理解和 Skills 执行仍由 Codex 负责。
 
 ## 为什么使用 PilotHub
 

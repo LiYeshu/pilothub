@@ -90,6 +90,19 @@ const PluginDetailModal = ({
           <dl className="plugin-detail-summary">
             <div>
               <dt>
+                <CircleCheck size={15} aria-hidden="true" />
+                {t('plugins.invocationMode')}
+              </dt>
+              <dd>
+                {status.invocation.mode === 'native'
+                  ? t('plugins.nativeMode')
+                  : status.invocation.mode === 'compatibility'
+                    ? t('plugins.compatibilityMode')
+                    : t('plugins.unavailableMode')}
+              </dd>
+            </div>
+            <div>
+              <dt>
                 <Bot size={15} aria-hidden="true" />
                 {t('plugins.runtime')}
               </dt>
@@ -110,6 +123,30 @@ const PluginDetailModal = ({
                 {t('plugins.version')}
               </dt>
               <dd>v{descriptor.version}</dd>
+            </div>
+            <div>
+              <dt>{t('plugins.nativeRegistration')}</dt>
+              <dd>
+                {status.invocation.native_registration
+                  ? t('plugins.available')
+                  : t('plugins.unavailable')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('plugins.nativeDiscovery')}</dt>
+              <dd>
+                {status.invocation.native_discovery
+                  ? t('plugins.available')
+                  : t('plugins.unavailable')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('plugins.nativeInvocation')}</dt>
+              <dd>
+                {status.invocation.native_invocation
+                  ? t('plugins.available')
+                  : t('plugins.unavailable')}
+              </dd>
             </div>
           </dl>
 
@@ -188,6 +225,20 @@ const PluginDetailModal = ({
                   <code>{status.marketplace_name}</code>
                 </dd>
               </div>
+              {status.catalog.visible ? (
+                <>
+                  <div>
+                    <dt>{t('plugins.compatibilityLauncher')}</dt>
+                    <dd>
+                      <code>${status.catalog.skill_name}</code>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('plugins.compatibilityLauncherPath')}</dt>
+                    <dd>{status.catalog.path}</dd>
+                  </div>
+                </>
+              ) : null}
               <div>
                 <dt>{t('plugins.installPath')}</dt>
                 <dd>{status.installed_path ?? t('unknown')}</dd>

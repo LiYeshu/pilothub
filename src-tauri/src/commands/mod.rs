@@ -1159,6 +1159,18 @@ pub async fn doctor_codex_plugin(pluginName: String) -> Result<PluginInstallatio
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn repair_codex_plugin(pluginName: String) -> Result<PluginInstallationStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = dirs::home_dir().context("home directory is unavailable")?;
+        CodexPluginAdapter::from_home(&home)?.repair(&pluginName)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(format_anyhow_error)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn uninstall_codex_plugin(pluginName: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let home = dirs::home_dir().context("home directory is unavailable")?;

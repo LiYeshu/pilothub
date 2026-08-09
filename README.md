@@ -16,7 +16,7 @@ Use in supported Agents           Use the expert team in Codex
 
 ## Project status
 
-PilotHub `0.10.0-alpha.1` adds a standard Codex Plugin lifecycle on top of the
+PilotHub `0.10.0-alpha.2` adds a standard Codex Plugin lifecycle on top of the
 verified independent Skill workflow. A multi-Skill Plugin can now be installed,
 diagnosed, and removed as one Extension and presented as an AI expert team.
 

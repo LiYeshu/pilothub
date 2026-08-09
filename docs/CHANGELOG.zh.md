@@ -4,6 +4,34 @@
 
 ## [Unreleased]
 
+## [0.10.0-alpha.3] - 2026-08-09
+
+### 变更
+- **Codex 原生 Plugin 调用**：已安装且启用的 Codex Plugin 直接使用其命名空间 Skills；新安装不再生成独立的技能目录 Launcher。
+- **安全迁移旧 Launcher**：读取既有 Plugin 时只移除带 PilotHub 所有权标记的旧 Launcher，绝不删除或覆盖用户自行创建的同名 Skill。
+- **生命周期诊断细化**：Plugin 详情分别展示原生注册、Skill 发现、调用能力和兼容状态，不再仅凭“已安装”判断 Plugin 可以运行。
+
+### 新增
+- **显式 Plugin 修复**：重新校验托管文件、重建 PilotHub marketplace 条目、恢复 Codex 注册，并在原生调用恢复后清理由 PilotHub 管理的旧 Launcher。
+- **卸载残留验证**：托管文件、marketplace 元数据、PilotHub 旧 Launcher 或 Codex 注册任一残留时，卸载返回 `PLUGIN_UNINSTALL_INCOMPLETE`。
+- **Alpha.3 验收证据**：记录原生调用探测、生命周期规则，以及 macOS 真实环境中的卸载、重装和全新会话调用结果。
+
+### 验证
+- **全新 Codex 调用**：新的只读 Codex 会话在无 Launcher 情况下发现 `wechat-content-expert-team:content-director`，读取其协作协议，并返回策划、写作、封面和配图四阶段。
+- **可恢复生命周期**：真实 Plugin 完成备份、无残留卸载、原生重装，并以已安装、已启用、健康状态留在系统中。
+- **完整质量检查**：前端 lint、49 项前端测试、生产构建、Rust 格式、Clippy 和 179 项 Rust 测试通过；2 项外部 E2E 测试按设计忽略。
+
+## [0.10.0-alpha.2] - 2026-08-06
+
+### 修复
+- **macOS 发布包验签**：未配置 Apple Developer ID 证书时，发布构建现在会使用结构完整的 ad-hoc bundle 签名，并在上传前强制验证每个 macOS 应用包。此类构建仍未公证，部分系统可能仍需要文档中的 Gatekeeper 处理方式。
+
+### 新增
+- **Codex 技能目录入口**：为每个由 PilotHub 管理的 Codex Plugin 生成一个独立启动 Skill，使 AI 专家团可以显示在 Codex 技能目录中，同时保留内部专业 Skills 的 Plugin 命名空间。
+
+### 变更
+- **Plugin 生命周期扩展**：启动 Skill 随所属 Plugin 一起安装、修复、诊断、更新、回滚和卸载；遇到同名用户 Skill 时停止覆盖并给出明确提示。
+
 ## [0.10.0-alpha.1] - 2026-07-30
 
 ### 新增
@@ -258,7 +286,9 @@
 ### 性能
 - Git 导入/批量安装优化：缓存 clone 减少重复拉取；增加超时与无交互提示提升稳定性。
 
-[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...HEAD
+[Unreleased]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.3...HEAD
+[0.10.0-alpha.3]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.2...v0.10.0-alpha.3
+[0.10.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.10.0-alpha.1...v0.10.0-alpha.2
 [0.10.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.2...v0.10.0-alpha.1
 [0.9.0-alpha.2]: https://github.com/LiYeshu/pilothub/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/LiYeshu/pilothub/compare/skills-hub-baseline-2026-07-27...v0.9.0-alpha.1

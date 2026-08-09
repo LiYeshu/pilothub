@@ -152,6 +152,7 @@ pub fn run() {
             commands::install_codex_plugin,
             commands::list_codex_plugins,
             commands::doctor_codex_plugin,
+            commands::repair_codex_plugin,
             commands::uninstall_codex_plugin,
             commands::sync_skill_dir,
             commands::sync_skill_to_tool,

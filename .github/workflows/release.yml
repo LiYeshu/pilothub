@@ -197,8 +197,11 @@ jobs:
           if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
             echo "✅ 使用 APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY 进行签名"
           else
-            echo "ℹ️ 未配置 APPLE_SIGNING_IDENTITY，构建未签名版本"
-            unset APPLE_SIGNING_IDENTITY
+            # Keep the .app bundle structurally signed even when no Apple
+            # Developer ID certificate is available. This is not notarization
+            # and Gatekeeper may still require the documented xattr workaround.
+            export APPLE_SIGNING_IDENTITY="-"
+            echo "ℹ️ 未配置 Apple 证书，使用 ad-hoc bundle 签名（未公证）"
           fi
           npm run tauri:build -- --target ${{ matrix.target }} --bundles app,dmg
           echo "=== Build completed ==="
@@ -219,19 +222,16 @@ jobs:
           echo "=== Build completed ==="
           ls -la src-tauri/target/${{ matrix.target }}/release/bundle/ || true
 
-      - name: Verify codesign (optional)
+      - name: Verify macOS bundle signature
+        if: matrix.os == 'macos-14'
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
-            echo "ℹ️ 未配置 APPLE_CERTIFICATE，跳过验签"
-            exit 0
-          fi
           TARGET="${{ matrix.target }}"
           APP_PATH="$(find "src-tauri/target/${TARGET}/release/bundle" -type d -name "*.app" | head -n 1 || true)"
           if [ -z "$APP_PATH" ]; then
-            echo "⚠️ 未找到 .app，跳过验签" >&2
-            exit 0
+            echo "❌ 未找到 .app，无法验签" >&2
+            exit 1
           fi
           echo "APP_PATH=$APP_PATH"
           codesign -dv --verbose=4 "$APP_PATH" || true

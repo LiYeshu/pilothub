@@ -798,7 +798,7 @@ pub(crate) fn resolve_default_path_from_home(adapter: &ToolAdapter, home: &Path)
     home.join(adapter.relative_skills_dir)
 }
 
-fn resolve_codex_home(home: &Path, configured: Option<std::ffi::OsString>) -> PathBuf {
+pub(crate) fn resolve_codex_home(home: &Path, configured: Option<std::ffi::OsString>) -> PathBuf {
     if let Some(configured) = configured.filter(|value| !value.is_empty()) {
         let configured = PathBuf::from(configured);
         return if configured.is_absolute() {
