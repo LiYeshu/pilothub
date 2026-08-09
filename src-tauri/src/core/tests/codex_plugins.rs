@@ -66,6 +66,7 @@ struct FakeCodexRunner {
     calls: Mutex<Vec<Vec<String>>>,
     fail_install: bool,
     fail_list: bool,
+    leave_installed_after_remove: bool,
 }
 
 impl FakeCodexRunner {
@@ -75,6 +76,7 @@ impl FakeCodexRunner {
             calls: Mutex::new(Vec::new()),
             fail_install: false,
             fail_list: false,
+            leave_installed_after_remove: false,
         }
     }
 
@@ -88,6 +90,13 @@ impl FakeCodexRunner {
     fn failing_list() -> Self {
         Self {
             fail_list: true,
+            ..Self::new()
+        }
+    }
+
+    fn incomplete_remove() -> Self {
+        Self {
+            leave_installed_after_remove: true,
             ..Self::new()
         }
     }
@@ -129,7 +138,9 @@ impl CodexCommandRunner for FakeCodexRunner {
             })));
         }
         if command.starts_with("plugin remove ") {
-            *self.installed.lock().unwrap() = false;
+            if !self.leave_installed_after_remove {
+                *self.installed.lock().unwrap() = false;
+            }
             return Ok(Self::output(json!({
                 "name": "sample-plugin",
                 "marketplaceName": PILOTHUB_MARKETPLACE_NAME
@@ -546,4 +557,104 @@ fn native_install_preserves_an_unmanaged_legacy_launcher_name() {
         "user-owned"
     );
     assert!(adapter.layout.codex_plugins.join("sample-plugin").exists());
+}
+
+#[test]
+fn repair_restores_registration_and_removes_owned_legacy_launcher() {
+    let temp = TempDir::new().unwrap();
+    let adapter = test_adapter(&temp);
+    let root = temp.path().join("sample-plugin");
+    write_plugin(
+        &root,
+        r#"{
+          "name": "sample-plugin",
+          "version": "1.0.0",
+          "description": "Sample",
+          "skills": "./skills/"
+        }"#,
+        &[("sample-skill", "Run the sample workflow")],
+    );
+    let runner = FakeCodexRunner::new();
+    adapter
+        .install_with_runner(&local_source(&root), None, &runner)
+        .unwrap();
+    *runner.installed.lock().unwrap() = false;
+    let descriptor = adapter
+        .inspect(&local_source(&root), None)
+        .unwrap()
+        .descriptor;
+    let launcher = adapter.codex_skills.join("pilothub-sample-plugin");
+    super::write_catalog_launcher(&launcher, &descriptor).unwrap();
+
+    let status = adapter
+        .repair_with_runner("sample-plugin", &runner)
+        .unwrap();
+
+    assert!(status.installed);
+    assert_eq!(status.invocation.mode, "native");
+    assert!(!launcher.exists());
+}
+
+#[test]
+fn failed_native_update_preserves_the_previous_plugin() {
+    let temp = TempDir::new().unwrap();
+    let adapter = test_adapter(&temp);
+    let root = temp.path().join("sample-plugin");
+    write_plugin(
+        &root,
+        r#"{
+          "name": "sample-plugin",
+          "version": "1.0.0",
+          "description": "Sample",
+          "skills": "./skills/"
+        }"#,
+        &[("sample-skill", "Run the sample workflow")],
+    );
+    adapter
+        .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
+        .unwrap();
+    let installed_manifest = adapter
+        .layout
+        .codex_plugins
+        .join("sample-plugin/.codex-plugin/plugin.json");
+    let original = fs::read_to_string(&installed_manifest).unwrap();
+
+    let error = adapter
+        .install_with_runner(
+            &local_source(&root),
+            None,
+            &FakeCodexRunner::failing_install(),
+        )
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("simulated install failure"));
+    assert_eq!(fs::read_to_string(installed_manifest).unwrap(), original);
+    assert!(!adapter.codex_skills.join("pilothub-sample-plugin").exists());
+}
+
+#[test]
+fn uninstall_reports_a_codex_registration_residue() {
+    let temp = TempDir::new().unwrap();
+    let adapter = test_adapter(&temp);
+    let root = temp.path().join("sample-plugin");
+    write_plugin(
+        &root,
+        r#"{
+          "name": "sample-plugin",
+          "version": "1.0.0",
+          "description": "Sample",
+          "skills": "./skills/"
+        }"#,
+        &[("sample-skill", "Run the sample workflow")],
+    );
+    let runner = FakeCodexRunner::incomplete_remove();
+    adapter
+        .install_with_runner(&local_source(&root), None, &runner)
+        .unwrap();
+
+    let error = adapter
+        .uninstall_with_runner("sample-plugin", &runner)
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("PLUGIN_UNINSTALL_INCOMPLETE"));
 }

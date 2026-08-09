@@ -1550,6 +1550,31 @@ function App() {
     [formatErrorMessage, invokeTauri, t],
   )
 
+  const handleRepairPlugin = useCallback(
+    async (pluginName: string) => {
+      setPluginLoading(true)
+      try {
+        const status = await invokeTauri<PluginInstallationStatus>(
+          'repair_codex_plugin',
+          { pluginName },
+        )
+        await loadManagedSkills()
+        if (status.health === 'healthy') {
+          toast.success(t('plugins.repairSuccess', { name: pluginName }))
+        } else {
+          toast.warning(
+            status.detail ?? t('plugins.repairAttention', { name: pluginName }),
+          )
+        }
+      } catch (err) {
+        toast.error(formatErrorMessage(err instanceof Error ? err.message : String(err)))
+      } finally {
+        setPluginLoading(false)
+      }
+    },
+    [formatErrorMessage, invokeTauri, loadManagedSkills, t],
+  )
+
   const handleConfirmPluginUninstall = useCallback(async () => {
     if (!pendingPluginUninstall) return
     setPluginLoading(true)
@@ -3959,6 +3984,7 @@ function App() {
             onOpenPlugin={setSelectedPluginDetail}
             onAddPlugin={handleOpenPluginInstall}
             onDoctorPlugin={(pluginName) => void handleDoctorPlugin(pluginName)}
+            onRepairPlugin={(pluginName) => void handleRepairPlugin(pluginName)}
             onUninstallPlugin={setPendingPluginUninstall}
             t={t}
           />

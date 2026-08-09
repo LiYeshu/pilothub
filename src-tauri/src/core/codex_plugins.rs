@@ -205,6 +205,10 @@ impl CodexPluginAdapter {
             .with_context(|| format!("Plugin {plugin_name} is not managed by PilotHub"))
     }
 
+    pub fn repair(&self, plugin_name: &str) -> Result<PluginInstallationStatus> {
+        self.repair_with_runner(plugin_name, &SystemCodexRunner)
+    }
+
     pub fn uninstall(&self, plugin_name: &str) -> Result<()> {
         self.uninstall_with_runner(plugin_name, &SystemCodexRunner)
     }
@@ -416,6 +420,63 @@ impl CodexPluginAdapter {
         let launcher = self.launcher_path(plugin_name);
         if self.launcher_is_owned(&launcher, plugin_name) {
             remove_path(&launcher)?;
+        }
+        self.verify_uninstalled(plugin_name, runner)?;
+        Ok(())
+    }
+
+    fn repair_with_runner(
+        &self,
+        plugin_name: &str,
+        runner: &dyn CodexCommandRunner,
+    ) -> Result<PluginInstallationStatus> {
+        validate_plugin_name(plugin_name)?;
+        let root = self.layout.codex_plugins.join(plugin_name);
+        let source = PluginSource {
+            source_type: "managed".to_string(),
+            source_ref: root.to_string_lossy().to_string(),
+        };
+        let descriptor = inspect_plugin_root(&root, source)?.descriptor;
+        self.write_marketplace_entry(&descriptor)?;
+        ensure_marketplace_registered(runner, &self.layout.codex)?;
+        let selector = format!("{plugin_name}@{PILOTHUB_MARKETPLACE_NAME}");
+        run_json_command(
+            runner,
+            &[
+                "plugin".to_string(),
+                "add".to_string(),
+                selector,
+                "--json".to_string(),
+            ],
+        )?;
+        let mut status = find_plugin_status(runner, plugin_name)?
+            .with_context(|| format!("Codex did not report {plugin_name} after repair"))?;
+        if status.invocation.mode == "native" {
+            let launcher = self.launcher_path(plugin_name);
+            if self.launcher_is_owned(&launcher, plugin_name) {
+                remove_path(&launcher).context("remove legacy compatibility launcher")?;
+            }
+        }
+        status.catalog = self.catalog_status(plugin_name);
+        Ok(status)
+    }
+
+    fn verify_uninstalled(&self, plugin_name: &str, runner: &dyn CodexCommandRunner) -> Result<()> {
+        if self.layout.codex_plugins.join(plugin_name).exists() {
+            anyhow::bail!("PLUGIN_UNINSTALL_INCOMPLETE|Plugin files remain");
+        }
+        if self.launcher_is_owned(&self.launcher_path(plugin_name), plugin_name) {
+            anyhow::bail!("PLUGIN_UNINSTALL_INCOMPLETE|Compatibility launcher remains");
+        }
+        if self
+            .marketplace_plugin_names()?
+            .iter()
+            .any(|name| name == plugin_name)
+        {
+            anyhow::bail!("PLUGIN_UNINSTALL_INCOMPLETE|Marketplace entry remains");
+        }
+        if find_plugin_status(runner, plugin_name)?.is_some() {
+            anyhow::bail!("PLUGIN_UNINSTALL_INCOMPLETE|Codex still reports the Plugin");
         }
         Ok(())
     }
