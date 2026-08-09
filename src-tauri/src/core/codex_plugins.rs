@@ -79,6 +79,15 @@ pub struct PluginInstallationStatus {
     pub detail: Option<String>,
     pub invocation: PluginInvocationCapability,
     pub catalog: PluginCatalogStatus,
+    pub runtimes: Vec<PluginRuntimeStatus>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PluginRuntimeStatus {
+    pub host: String,
+    pub discovery: String,
+    pub invocation: String,
+    pub detail: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -378,6 +387,7 @@ impl CodexPluginAdapter {
                         "Codex does not report this Plugin as installed",
                     ),
                     catalog: empty_catalog_status(""),
+                    runtimes: runtime_statuses(false, false),
                 });
             status.catalog = self.catalog_status(&preview.descriptor.name);
             if status.invocation.mode == "native" {
@@ -805,10 +815,48 @@ fn invocation_capability(installed: bool, enabled: bool) -> PluginInvocationCapa
         mode: "native".to_string(),
         native_registration: true,
         native_discovery: true,
-        native_invocation: true,
-        verification: "verified".to_string(),
-        detail: Some("Codex can discover and invoke this Plugin natively".to_string()),
+        native_invocation: false,
+        verification: "unverified".to_string(),
+        detail: Some(
+            "Codex reports this Plugin as installed and enabled; task execution requires a real host test"
+                .to_string(),
+        ),
     }
+}
+
+fn runtime_statuses(installed: bool, enabled: bool) -> Vec<PluginRuntimeStatus> {
+    let ready = installed && enabled;
+    let codex_discovery = if ready { "verified" } else { "unavailable" };
+    let codex_invocation = if ready { "unverified" } else { "unavailable" };
+    vec![
+        PluginRuntimeStatus {
+            host: "codex".to_string(),
+            discovery: codex_discovery.to_string(),
+            invocation: codex_invocation.to_string(),
+            detail: if ready {
+                "Codex CLI reports the Plugin as installed and enabled; run a task to verify execution"
+                    .to_string()
+            } else {
+                "The Plugin is not installed and enabled in Codex".to_string()
+            },
+        },
+        PluginRuntimeStatus {
+            host: "chat".to_string(),
+            discovery: "unverified".to_string(),
+            invocation: "unverified".to_string(),
+            detail:
+                "PilotHub cannot inspect whether a Chat conversation loaded the selected Plugin"
+                    .to_string(),
+        },
+        PluginRuntimeStatus {
+            host: "work".to_string(),
+            discovery: "unverified".to_string(),
+            invocation: "unverified".to_string(),
+            detail:
+                "PilotHub cannot inspect Work task execution; verify it with a real deliverable"
+                    .to_string(),
+        },
+    ]
 }
 
 fn unavailable_invocation_capability(detail: &str) -> PluginInvocationCapability {
@@ -1079,6 +1127,7 @@ fn status_from_list_json(value: &Value, plugin_name: &str) -> Option<PluginInsta
                 detail: None,
                 invocation: invocation_capability(installed, enabled),
                 catalog: empty_catalog_status(plugin_name),
+                runtimes: runtime_statuses(installed, enabled),
             }
         })
 }

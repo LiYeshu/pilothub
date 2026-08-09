@@ -90,6 +90,15 @@ const ExtensionsPage = ({
             const visibleSkills = plugin.descriptor.skills.slice(0, 4)
             const remainingSkillCount =
               plugin.descriptor.skills.length - visibleSkills.length
+            const runtimeSummary = plugin.status.runtimes
+              .filter((runtime) => runtime.host !== 'work')
+              .map((runtime) => ({
+                ...runtime,
+                label:
+                  runtime.host === 'chat'
+                    ? t('plugins.runtimeChat')
+                    : t('plugins.runtimeCodex'),
+              }))
             return (
               <article className="codex-plugin-card" key={plugin.descriptor.name}>
                 <div className="codex-plugin-header">
@@ -135,7 +144,6 @@ const ExtensionsPage = ({
                   {plugin.descriptor.description}
                 </p>
                 <div className="codex-plugin-meta">
-                  <span>{t('plugins.runtime')}: Codex</span>
                   <span>
                     {isExpertTeam
                       ? t('plugins.specialistCount', {
@@ -153,6 +161,29 @@ const ExtensionsPage = ({
                         ? t('plugins.compatibilityMode')
                         : t('plugins.unavailableMode')}
                   </span>
+                </div>
+                <div
+                  className="plugin-runtime-statuses"
+                  aria-label={t('plugins.runtimeStatus')}
+                >
+                  {runtimeSummary.map((runtime) => (
+                    <span
+                      className={`plugin-runtime-status ${runtime.invocation}`}
+                      key={runtime.host}
+                    >
+                      {runtime.invocation === 'verified' ? (
+                        <CircleCheck size={13} aria-hidden="true" />
+                      ) : (
+                        <CircleAlert size={13} aria-hidden="true" />
+                      )}
+                      {runtime.label}:{' '}
+                      {runtime.invocation === 'verified'
+                        ? t('plugins.runtimeVerified')
+                        : runtime.discovery === 'verified'
+                          ? t('plugins.runtimeReady')
+                          : t('plugins.runtimeUnverified')}
+                    </span>
+                  ))}
                 </div>
                 <div
                   className="codex-plugin-skills"

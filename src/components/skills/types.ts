@@ -173,6 +173,12 @@ export type PluginInstallationStatus = {
     path: string
     detail?: string | null
   }
+  runtimes: {
+    host: 'codex' | 'chat' | 'work' | string
+    discovery: 'verified' | 'unverified' | 'unavailable' | string
+    invocation: 'verified' | 'unverified' | 'unavailable' | string
+    detail: string
+  }[]
 }
 
 export type InstalledCodexPlugin = {
