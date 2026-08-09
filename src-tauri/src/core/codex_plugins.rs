@@ -84,6 +84,7 @@ pub struct PluginInstallationStatus {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PluginInvocationCapability {
     pub host: String,
+    pub mode: String,
     pub native_registration: bool,
     pub native_discovery: bool,
     pub native_invocation: bool,
@@ -237,7 +238,6 @@ impl CodexPluginAdapter {
             .codex_staging
             .join(format!("{plugin_name}-{}", Uuid::new_v4()));
         let staging_plugin = staging_root.join(plugin_name);
-        self.ensure_launcher_available(plugin_name)?;
         std::fs::create_dir_all(&staging_root)?;
 
         let install_result = (|| -> Result<PluginInstallResult> {
@@ -273,8 +273,6 @@ impl CodexPluginAdapter {
             }
 
             let mut marketplace_added = false;
-            let mut launcher_backup = None;
-            let mut launcher_activated = false;
             let cli_result = (|| -> Result<PluginInstallationStatus> {
                 marketplace_added = ensure_marketplace_registered(runner, &self.layout.codex)?;
                 let selector = format!("{plugin_name}@{PILOTHUB_MARKETPLACE_NAME}");
@@ -290,9 +288,6 @@ impl CodexPluginAdapter {
                 let mut status = find_plugin_status(runner, plugin_name)?.with_context(|| {
                     format!("Codex did not report {plugin_name} after installation")
                 })?;
-                launcher_backup =
-                    self.activate_catalog_launcher(&preview.descriptor, &staging_root)?;
-                launcher_activated = true;
                 status.catalog = self.catalog_status(plugin_name);
                 Ok(status)
             })();
@@ -302,22 +297,12 @@ impl CodexPluginAdapter {
                     if let Some(backup) = backup {
                         let _ = remove_path(&backup);
                     }
-                    if let Some(backup) = launcher_backup {
-                        let _ = remove_path(&backup);
-                    }
                     Ok(PluginInstallResult {
                         descriptor: preview.descriptor.clone(),
                         status,
                     })
                 }
                 Err(err) => {
-                    let launcher = self.launcher_path(plugin_name);
-                    if launcher_activated && self.launcher_is_owned(&launcher, plugin_name) {
-                        let _ = remove_path(&launcher);
-                    }
-                    if let Some(backup) = launcher_backup {
-                        let _ = std::fs::rename(backup, launcher);
-                    }
                     let selector = format!("{plugin_name}@{PILOTHUB_MARKETPLACE_NAME}");
                     let _ = run_json_command(
                         runner,
@@ -374,7 +359,6 @@ impl CodexPluginAdapter {
                 source_ref: root.to_string_lossy().to_string(),
             };
             let preview = inspect_plugin_root(&root, source)?;
-            let _ = self.repair_catalog_launcher(&preview.descriptor);
             let mut status =
                 status_from_list_json(&cli, &name).unwrap_or(PluginInstallationStatus {
                     plugin_name: name,
@@ -392,9 +376,12 @@ impl CodexPluginAdapter {
                     catalog: empty_catalog_status(""),
                 });
             status.catalog = self.catalog_status(&preview.descriptor.name);
-            if status.health == "healthy" && !status.catalog.visible {
-                status.health = "warning".to_string();
-                status.detail = status.catalog.detail.clone();
+            if status.invocation.mode == "native" {
+                let launcher = self.launcher_path(&preview.descriptor.name);
+                if self.launcher_is_owned(&launcher, &preview.descriptor.name) {
+                    remove_path(&launcher).context("remove legacy compatibility launcher")?;
+                    status.catalog = self.catalog_status(&preview.descriptor.name);
+                }
             }
             plugins.push(InstalledCodexPlugin {
                 descriptor: preview.descriptor,
@@ -441,72 +428,6 @@ impl CodexPluginAdapter {
         self.codex_skills.join(self.launcher_name(plugin_name))
     }
 
-    fn ensure_launcher_available(&self, plugin_name: &str) -> Result<()> {
-        let launcher = self.launcher_path(plugin_name);
-        if launcher.exists() && !self.launcher_is_owned(&launcher, plugin_name) {
-            anyhow::bail!(
-                "PLUGIN_CATALOG_CONFLICT|{}",
-                self.launcher_name(plugin_name)
-            );
-        }
-        Ok(())
-    }
-
-    fn activate_catalog_launcher(
-        &self,
-        descriptor: &CodexPluginDescriptor,
-        staging_root: &Path,
-    ) -> Result<Option<PathBuf>> {
-        let launcher = self.launcher_path(&descriptor.name);
-        let staged = staging_root.join(self.launcher_name(&descriptor.name));
-        write_catalog_launcher(&staged, descriptor)?;
-        std::fs::create_dir_all(&self.codex_skills)
-            .with_context(|| format!("create Codex Skills directory {:?}", self.codex_skills))?;
-        let backup = if launcher.exists() {
-            let backup = self.layout.codex_backups.join(format!(
-                "{}-launcher-{}",
-                descriptor.name,
-                Uuid::new_v4()
-            ));
-            std::fs::rename(&launcher, &backup).context("backup existing catalog launcher")?;
-            Some(backup)
-        } else {
-            None
-        };
-        if let Err(err) = std::fs::rename(&staged, &launcher) {
-            if let Some(backup) = &backup {
-                let _ = std::fs::rename(backup, &launcher);
-            }
-            return Err(err).context("activate Codex catalog launcher");
-        }
-        Ok(backup)
-    }
-
-    fn repair_catalog_launcher(&self, descriptor: &CodexPluginDescriptor) -> Result<()> {
-        let launcher = self.launcher_path(&descriptor.name);
-        if self.launcher_is_owned(&launcher, &descriptor.name)
-            && launcher.join("SKILL.md").is_file()
-            && launcher.join("agents/openai.yaml").is_file()
-        {
-            return Ok(());
-        }
-        self.ensure_launcher_available(&descriptor.name)?;
-        let staging_root = self
-            .layout
-            .codex_staging
-            .join(format!("catalog-repair-{}", Uuid::new_v4()));
-        std::fs::create_dir_all(&staging_root)?;
-        let result = self
-            .activate_catalog_launcher(descriptor, &staging_root)
-            .map(|backup| {
-                if let Some(backup) = backup {
-                    let _ = remove_path(&backup);
-                }
-            });
-        let _ = remove_path(&staging_root);
-        result
-    }
-
     fn launcher_is_owned(&self, launcher: &Path, plugin_name: &str) -> bool {
         read_launcher_owner(launcher).as_deref() == Some(plugin_name)
     }
@@ -520,7 +441,8 @@ impl CodexPluginAdapter {
             visible,
             skill_name: self.launcher_name(plugin_name),
             path: launcher.to_string_lossy().to_string(),
-            detail: (!visible).then(|| "Codex catalog launcher is missing".to_string()),
+            detail: (!visible)
+                .then(|| "Optional compatibility launcher is not installed".to_string()),
         }
     }
 
@@ -734,6 +656,7 @@ fn scan_plugin_skills(
     Ok(skills)
 }
 
+#[cfg(test)]
 fn write_catalog_launcher(root: &Path, descriptor: &CodexPluginDescriptor) -> Result<()> {
     let launcher_name = format!("{PILOTHUB_LAUNCHER_PREFIX}{}", descriptor.name);
     let coordinator = descriptor
@@ -808,6 +731,7 @@ fn invocation_capability(installed: bool, enabled: bool) -> PluginInvocationCapa
     if !enabled {
         return PluginInvocationCapability {
             host: "codex".to_string(),
+            mode: "unavailable".to_string(),
             native_registration: true,
             native_discovery: false,
             native_invocation: false,
@@ -817,20 +741,19 @@ fn invocation_capability(installed: bool, enabled: bool) -> PluginInvocationCapa
     }
     PluginInvocationCapability {
         host: "codex".to_string(),
+        mode: "native".to_string(),
         native_registration: true,
         native_discovery: true,
-        native_invocation: false,
-        verification: "unsupported".to_string(),
-        detail: Some(
-            "Codex CLI verifies registration and enabled discovery; native invocation still requires a new-conversation acceptance check"
-                .to_string(),
-        ),
+        native_invocation: true,
+        verification: "verified".to_string(),
+        detail: Some("Codex can discover and invoke this Plugin natively".to_string()),
     }
 }
 
 fn unavailable_invocation_capability(detail: &str) -> PluginInvocationCapability {
     PluginInvocationCapability {
         host: "codex".to_string(),
+        mode: "unavailable".to_string(),
         native_registration: false,
         native_discovery: false,
         native_invocation: false,

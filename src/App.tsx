@@ -328,10 +328,6 @@ function App() {
       if (raw.startsWith('PLUGIN_INVALID|')) {
         return t('plugins.errors.invalid')
       }
-      if (raw.startsWith('PLUGIN_CATALOG_CONFLICT|')) {
-        const skill = raw.split('|')[1] ?? ''
-        return t('plugins.errors.catalogConflict', { skill })
-      }
       if (raw.includes('Codex CLI was not found')) {
         return t('plugins.errors.codexMissing')
       }

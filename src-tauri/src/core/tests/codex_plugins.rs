@@ -337,29 +337,16 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
         .join("sample-plugin/.codex-plugin/plugin.json")
         .exists());
     let launcher = adapter.codex_skills.join("pilothub-sample-plugin");
-    assert!(launcher.join("SKILL.md").exists());
-    assert!(launcher.join("agents/openai.yaml").exists());
-    assert!(
-        fs::read_to_string(launcher.join(".pilothub-plugin-launcher.json"))
-            .unwrap()
-            .contains("\"plugin_name\": \"sample-plugin\"")
-    );
+    assert!(!launcher.exists());
     let installed = adapter.list_with_runner(&runner).unwrap();
     assert_eq!(installed.len(), 1);
     assert_eq!(installed[0].status.health, "healthy");
     assert!(installed[0].status.invocation.native_registration);
     assert!(installed[0].status.invocation.native_discovery);
-    assert!(!installed[0].status.invocation.native_invocation);
-    assert_eq!(installed[0].status.invocation.verification, "unsupported");
-    assert!(installed[0].status.catalog.visible);
-    assert_eq!(
-        installed[0].status.catalog.skill_name,
-        "pilothub-sample-plugin"
-    );
-    fs::remove_dir_all(&launcher).unwrap();
-    let repaired = adapter.list_with_runner(&runner).unwrap();
-    assert!(repaired[0].status.catalog.visible);
-    assert!(launcher.join("SKILL.md").exists());
+    assert!(installed[0].status.invocation.native_invocation);
+    assert_eq!(installed[0].status.invocation.mode, "native");
+    assert_eq!(installed[0].status.invocation.verification, "verified");
+    assert!(!installed[0].status.catalog.visible);
 
     adapter
         .uninstall_with_runner("sample-plugin", &runner)
@@ -372,7 +359,7 @@ fn installs_diagnoses_and_uninstalls_as_one_plugin() {
 }
 
 #[test]
-fn native_invocation_detection_requires_a_new_conversation_acceptance_check() {
+fn enabled_plugin_uses_verified_native_invocation() {
     let status = super::status_from_list_json(
         &json!({
             "installed": [{
@@ -389,13 +376,9 @@ fn native_invocation_detection_requires_a_new_conversation_acceptance_check() {
 
     assert!(status.invocation.native_registration);
     assert!(status.invocation.native_discovery);
-    assert!(!status.invocation.native_invocation);
-    assert_eq!(status.invocation.verification, "unsupported");
-    assert!(status
-        .invocation
-        .detail
-        .unwrap()
-        .contains("new-conversation acceptance check"));
+    assert!(status.invocation.native_invocation);
+    assert_eq!(status.invocation.mode, "native");
+    assert_eq!(status.invocation.verification, "verified");
 }
 
 #[test]
@@ -417,6 +400,7 @@ fn disabled_plugin_fails_native_discovery_detection() {
     assert!(status.invocation.native_registration);
     assert!(!status.invocation.native_discovery);
     assert!(!status.invocation.native_invocation);
+    assert_eq!(status.invocation.mode, "unavailable");
     assert_eq!(status.invocation.verification, "failed");
 }
 
@@ -429,6 +413,7 @@ fn missing_plugin_has_no_native_invocation_capability() {
     assert!(!capability.native_registration);
     assert!(!capability.native_discovery);
     assert!(!capability.native_invocation);
+    assert_eq!(capability.mode, "unavailable");
     assert_eq!(capability.verification, "failed");
 }
 
@@ -447,8 +432,9 @@ fn cli_list_failure_reports_no_native_invocation_capability() {
         }"#,
         &[("sample-skill", "Run the sample workflow")],
     );
+    let runner = FakeCodexRunner::new();
     adapter
-        .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
+        .install_with_runner(&local_source(&root), None, &runner)
         .unwrap();
 
     let installed = adapter
@@ -460,6 +446,7 @@ fn cli_list_failure_reports_no_native_invocation_capability() {
     assert!(!installed[0].status.invocation.native_registration);
     assert!(!installed[0].status.invocation.native_discovery);
     assert!(!installed[0].status.invocation.native_invocation);
+    assert_eq!(installed[0].status.invocation.mode, "unavailable");
     assert_eq!(installed[0].status.invocation.verification, "failed");
 }
 
@@ -497,7 +484,7 @@ fn rolls_back_files_and_marketplace_when_codex_install_fails() {
 }
 
 #[test]
-fn failed_plugin_update_preserves_the_existing_catalog_launcher() {
+fn listing_migrates_a_pilothub_owned_legacy_launcher() {
     let temp = TempDir::new().unwrap();
     let adapter = test_adapter(&temp);
     let root = temp.path().join("sample-plugin");
@@ -511,34 +498,27 @@ fn failed_plugin_update_preserves_the_existing_catalog_launcher() {
         }"#,
         &[("sample-skill", "Run the sample workflow")],
     );
+    let runner = FakeCodexRunner::new();
     adapter
-        .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
+        .install_with_runner(&local_source(&root), None, &runner)
         .unwrap();
     let launcher = adapter.codex_skills.join("pilothub-sample-plugin");
-    let original = fs::read_to_string(launcher.join("SKILL.md")).unwrap();
+    let descriptor = adapter
+        .inspect(&local_source(&root), None)
+        .unwrap()
+        .descriptor;
+    super::write_catalog_launcher(&launcher, &descriptor).unwrap();
+    assert!(launcher.exists());
 
-    let error = adapter
-        .install_with_runner(
-            &local_source(&root),
-            None,
-            &FakeCodexRunner::failing_install(),
-        )
-        .unwrap_err();
+    let installed = adapter.list_with_runner(&runner).unwrap();
 
-    assert!(format!("{error:#}").contains("simulated install failure"));
-    assert_eq!(
-        fs::read_to_string(launcher.join("SKILL.md")).unwrap(),
-        original
-    );
-    assert!(adapter
-        .layout
-        .codex_plugins
-        .join("sample-plugin/.codex-plugin/plugin.json")
-        .exists());
+    assert_eq!(installed[0].status.invocation.mode, "native");
+    assert!(!installed[0].status.catalog.visible);
+    assert!(!launcher.exists());
 }
 
 #[test]
-fn refuses_to_overwrite_an_unmanaged_catalog_skill() {
+fn native_install_preserves_an_unmanaged_legacy_launcher_name() {
     let temp = TempDir::new().unwrap();
     let adapter = test_adapter(&temp);
     let root = temp.path().join("sample-plugin");
@@ -556,14 +536,14 @@ fn refuses_to_overwrite_an_unmanaged_catalog_skill() {
     fs::create_dir_all(&launcher).unwrap();
     fs::write(launcher.join("SKILL.md"), "user-owned").unwrap();
 
-    let error = adapter
+    let result = adapter
         .install_with_runner(&local_source(&root), None, &FakeCodexRunner::new())
-        .unwrap_err();
+        .unwrap();
 
-    assert!(format!("{error:#}").contains("PLUGIN_CATALOG_CONFLICT"));
+    assert_eq!(result.status.invocation.mode, "native");
     assert_eq!(
         fs::read_to_string(launcher.join("SKILL.md")).unwrap(),
         "user-owned"
     );
-    assert!(!adapter.layout.codex_plugins.join("sample-plugin").exists());
+    assert!(adapter.layout.codex_plugins.join("sample-plugin").exists());
 }
