@@ -2960,7 +2960,7 @@ dependencies = [
 
 [[package]]
 name = "pilothub"
-version = "0.10.0-alpha.2"
+version = "0.10.0-alpha.3"
 dependencies = [
  "anyhow",
  "dirs 5.0.1",
