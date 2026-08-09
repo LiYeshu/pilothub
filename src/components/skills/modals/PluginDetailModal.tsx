@@ -124,6 +124,30 @@ const PluginDetailModal = ({
               </dt>
               <dd>v{descriptor.version}</dd>
             </div>
+            <div>
+              <dt>{t('plugins.nativeRegistration')}</dt>
+              <dd>
+                {status.invocation.native_registration
+                  ? t('plugins.available')
+                  : t('plugins.unavailable')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('plugins.nativeDiscovery')}</dt>
+              <dd>
+                {status.invocation.native_discovery
+                  ? t('plugins.available')
+                  : t('plugins.unavailable')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('plugins.nativeInvocation')}</dt>
+              <dd>
+                {status.invocation.native_invocation
+                  ? t('plugins.available')
+                  : t('plugins.unavailable')}
+              </dd>
+            </div>
           </dl>
 
           <section className="plugin-detail-section">
